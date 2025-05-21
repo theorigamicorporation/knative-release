@@ -125172,7 +125172,7 @@ const UPDATE_KNATIVE_SERVICE = gql `
 /**
  * Create Apollo client for GraphQL requests
  */
-function createApolloClient(apiUrl, token) {
+function createApolloClient(apiUrl, token, cloudTenant) {
     const httpLink = new HttpLink({
         uri: apiUrl,
         fetch: fetch$1
@@ -125181,7 +125181,8 @@ function createApolloClient(apiUrl, token) {
         return {
             headers: {
                 ...headers,
-                authorization: token ? `Bearer ${token}` : ''
+                authorization: token ? `Bearer ${token}` : '',
+                'x-tenant': cloudTenant,
             }
         };
     });
@@ -125223,14 +125224,15 @@ async function run() {
         const portName = coreExports.getInput('port_name');
         const imagePullSecretName = coreExports.getInput('image_pull_secret_name') || 'regcred';
         // Get environment variables
-        const apiUrl = process.env.RSO_API_URL || 'https://api.rso.dev/graphql';
-        const apiToken = process.env.RSO_API_TOKEN;
-        const clusterId = process.env.RSO_CLUSTER_ID;
+        const apiUrl = process.env.RSO_API_URL || 'https://gateway.cloud.rso.dev/graphql';
+        const apiToken = process.env.RSO_DEV_ACCESS_TOKEN;
+        const cloudTenant = process.env.RSO_CLOUD_TENANT;
+        const clusterId = 'toc-cluster-prod-o4';
+        if (!cloudTenant) {
+            throw new Error('RSO_CLOUD_TENANT environment variable is required');
+        }
         if (!apiToken) {
             throw new Error('RSO_API_TOKEN environment variable is required');
-        }
-        if (!clusterId) {
-            throw new Error('RSO_CLUSTER_ID environment variable is required');
         }
         // Parse JSON inputs
         const envVars = parseJsonInput(envVarsJson);
@@ -125280,7 +125282,7 @@ async function run() {
         };
         coreExports.debug(`Creating/updating Knative service with input: ${JSON.stringify(input, null, 2)}`);
         // Create Apollo client
-        const client = createApolloClient(apiUrl, apiToken);
+        const client = createApolloClient(apiUrl, apiToken, cloudTenant);
         // First try to update - if it fails with NotFound, try to create instead
         try {
             coreExports.info(`Attempting to update existing Knative service: ${serviceName}`);
