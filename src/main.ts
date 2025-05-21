@@ -328,8 +328,6 @@ export async function run(): Promise<void> {
     const serviceName = core.getInput('service_name', { required: true })
     const image = core.getInput('image', { required: true })
     const envVarsJson = core.getInput('env_vars')
-    const annotationsJson = core.getInput('annotations')
-    const labelsJson = core.getInput('labels')
     const resourceLimitsCpu = core.getInput('resource_limits_cpu')
     const resourceLimitsMemory = core.getInput('resource_limits_memory')
     const resourceRequestsCpu = core.getInput('resource_requests_cpu')
@@ -359,8 +357,6 @@ export async function run(): Promise<void> {
 
     // Parse JSON inputs
     const envVars = parseJsonInput(envVarsJson)
-    const annotations = parseJsonInput(annotationsJson)
-    const labels = parseJsonInput(labelsJson)
 
     // Create Apollo client
     const client = createApolloClient(apiUrl, apiToken, cloudTenant)
@@ -369,9 +365,6 @@ export async function run(): Promise<void> {
     const newInput = {
       name: serviceName,
       template: {
-        metadata: {
-          annotations: []
-        },
         spec: {
           containers: [
             {
@@ -402,10 +395,6 @@ export async function run(): Promise<void> {
           ]
         }
       },
-      annotations,
-      metadata: {
-        labels
-      }
     }
 
     // First try to get the existing service
@@ -429,8 +418,6 @@ export async function run(): Promise<void> {
         const existingInput = {
           name: existingService.name,
           template: existingService.template,
-          annotations: existingService.annotations,
-          metadata: existingService.metadata
         }
 
         // Remove __typename fields from the existing service data

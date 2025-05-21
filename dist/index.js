@@ -125344,8 +125344,6 @@ async function run() {
         const serviceName = coreExports.getInput('service_name', { required: true });
         const image = coreExports.getInput('image', { required: true });
         const envVarsJson = coreExports.getInput('env_vars');
-        const annotationsJson = coreExports.getInput('annotations');
-        const labelsJson = coreExports.getInput('labels');
         const resourceLimitsCpu = coreExports.getInput('resource_limits_cpu');
         const resourceLimitsMemory = coreExports.getInput('resource_limits_memory');
         const resourceRequestsCpu = coreExports.getInput('resource_requests_cpu');
@@ -125366,17 +125364,12 @@ async function run() {
         }
         // Parse JSON inputs
         const envVars = parseJsonInput(envVarsJson);
-        const annotations = parseJsonInput(annotationsJson);
-        const labels = parseJsonInput(labelsJson);
         // Create Apollo client
         const client = createApolloClient(apiUrl, apiToken, cloudTenant);
         // Prepare the new input based on provided parameters
         const newInput = {
             name: serviceName,
             template: {
-                metadata: {
-                    annotations: []
-                },
                 spec: {
                     containers: [
                         {
@@ -125407,10 +125400,6 @@ async function run() {
                     ]
                 }
             },
-            annotations,
-            metadata: {
-                labels
-            }
         };
         // First try to get the existing service
         try {
@@ -125430,8 +125419,6 @@ async function run() {
                 const existingInput = {
                     name: existingService.name,
                     template: existingService.template,
-                    annotations: existingService.annotations,
-                    metadata: existingService.metadata
                 };
                 // Remove __typename fields from the existing service data
                 const cleanExistingInput = removeTypenames(existingInput);
