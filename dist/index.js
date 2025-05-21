@@ -125314,6 +125314,28 @@ function isObject(item) {
     return Boolean(item && typeof item === 'object' && !Array.isArray(item));
 }
 /**
+ * Remove __typename fields recursively from an object
+ */
+function removeTypenames(obj) {
+    if (!obj || typeof obj !== 'object')
+        return obj;
+    if (Array.isArray(obj)) {
+        return obj.map(removeTypenames);
+    }
+    const result = { ...obj };
+    // Remove __typename field if it exists
+    if ('__typename' in result) {
+        delete result.__typename;
+    }
+    // Process all properties recursively
+    for (const key in result) {
+        if (result[key] && typeof result[key] === 'object') {
+            result[key] = removeTypenames(result[key]);
+        }
+    }
+    return result;
+}
+/**
  * The main function for the action.
  */
 async function run() {
@@ -125411,8 +125433,10 @@ async function run() {
                     annotations: existingService.annotations,
                     metadata: existingService.metadata
                 };
+                // Remove __typename fields from the existing service data
+                const cleanExistingInput = removeTypenames(existingInput);
                 // Merge the existing service with the new input, giving preference to new values
-                const mergedInput = deepMerge(existingInput, newInput);
+                const mergedInput = deepMerge(cleanExistingInput, newInput);
                 coreExports.debug(`Updating Knative service with merged input: ${JSON.stringify(mergedInput, null, 2)}`);
                 // Update the service with merged configuration
                 const updateResult = await client.mutate({

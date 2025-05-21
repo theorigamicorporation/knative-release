@@ -293,6 +293,33 @@ function isObject(item: unknown): item is Record<string, unknown> {
 }
 
 /**
+ * Remove __typename fields recursively from an object
+ */
+function removeTypenames<T>(obj: T): T {
+  if (!obj || typeof obj !== 'object') return obj
+  
+  if (Array.isArray(obj)) {
+    return obj.map(removeTypenames) as unknown as T
+  }
+  
+  const result = { ...obj } as Record<string, unknown>
+  
+  // Remove __typename field if it exists
+  if ('__typename' in result) {
+    delete result.__typename
+  }
+  
+  // Process all properties recursively
+  for (const key in result) {
+    if (result[key] && typeof result[key] === 'object') {
+      result[key] = removeTypenames(result[key])
+    }
+  }
+  
+  return result as T
+}
+
+/**
  * The main function for the action.
  */
 export async function run(): Promise<void> {
@@ -406,8 +433,11 @@ export async function run(): Promise<void> {
           metadata: existingService.metadata
         }
 
+        // Remove __typename fields from the existing service data
+        const cleanExistingInput = removeTypenames(existingInput)
+
         // Merge the existing service with the new input, giving preference to new values
-        const mergedInput = deepMerge(existingInput, newInput)
+        const mergedInput = deepMerge(cleanExistingInput, newInput)
 
         core.debug(
           `Updating Knative service with merged input: ${JSON.stringify(mergedInput, null, 2)}`
