@@ -125169,6 +125169,76 @@ const UPDATE_KNATIVE_SERVICE = gql `
     }
   }
 `;
+// GraphQL query for getting a Knative service
+const GET_KNATIVE_SERVICE = gql `
+  query KnativeServiceByCluster(
+    $clusterId: ID!
+    $name: String!
+    $namespace: String
+  ) {
+    knativeServiceByCluster(
+      clusterId: $clusterId
+      name: $name
+      namespace: $namespace
+    ) {
+      name
+      namespace
+      template {
+        metadata {
+          annotations {
+            key
+            value
+          }
+        }
+        spec {
+          imagePullSecrets {
+            name
+          }
+          containers {
+            image
+            resources {
+              limits {
+                cpu
+                memory
+              }
+              requests {
+                cpu
+                memory
+              }
+            }
+            ports {
+              containerPort
+              name
+            }
+            env {
+              name
+              value
+            }
+          }
+        }
+      }
+      annotations {
+        key
+        value
+      }
+      creationTimestamp
+      metadata {
+        annotations {
+          key
+          value
+        }
+        labels {
+          key
+          value
+        }
+      }
+      status {
+        latestReadyRevisionName
+        url
+      }
+    }
+  }
+`;
 /**
  * Create Apollo client for GraphQL requests
  */
@@ -125182,7 +125252,7 @@ function createApolloClient(apiUrl, token, cloudTenant) {
             headers: {
                 ...headers,
                 authorization: token ? `Bearer ${token}` : '',
-                'x-tenant': cloudTenant,
+                'x-tenant': cloudTenant
             }
         };
     });
@@ -125204,6 +125274,44 @@ function parseJsonInput(input) {
         coreExports.warning(`Failed to parse JSON input: ${error instanceof Error ? error.message : String(error)}`);
         return [];
     }
+}
+/**
+ * Deep merge two objects
+ * @param target The target object to merge into
+ * @param source The source object to merge from
+ * @returns The merged object
+ */
+function deepMerge(target, source) {
+    const output = { ...target };
+    if (isObject(target) && isObject(source)) {
+        Object.keys(source).forEach((key) => {
+            const targetValue = target[key];
+            const sourceValue = source[key];
+            if (isObject(sourceValue)) {
+                if (!(key in target)) {
+                    Object.assign(output, { [key]: sourceValue });
+                }
+                else {
+                    output[key] = deepMerge(targetValue, sourceValue);
+                }
+            }
+            else if (Array.isArray(sourceValue)) {
+                // For arrays, we'll replace the entire array
+                // (this is appropriate for env vars, annotations, etc.)
+                output[key] = sourceValue;
+            }
+            else {
+                Object.assign(output, { [key]: sourceValue });
+            }
+        });
+    }
+    return output;
+}
+/**
+ * Check if value is an object
+ */
+function isObject(item) {
+    return Boolean(item && typeof item === 'object' && !Array.isArray(item));
 }
 /**
  * The main function for the action.
@@ -125238,8 +125346,10 @@ async function run() {
         const envVars = parseJsonInput(envVarsJson);
         const annotations = parseJsonInput(annotationsJson);
         const labels = parseJsonInput(labelsJson);
-        // Prepare the input for the GraphQL mutation
-        const input = {
+        // Create Apollo client
+        const client = createApolloClient(apiUrl, apiToken, cloudTenant);
+        // Prepare the new input based on provided parameters
+        const newInput = {
             name: serviceName,
             template: {
                 metadata: {
@@ -125280,34 +125390,59 @@ async function run() {
                 labels
             }
         };
-        coreExports.debug(`Creating/updating Knative service with input: ${JSON.stringify(input, null, 2)}`);
-        // Create Apollo client
-        const client = createApolloClient(apiUrl, apiToken, cloudTenant);
-        // First try to update - if it fails with NotFound, try to create instead
+        // First try to get the existing service
         try {
-            coreExports.info(`Attempting to update existing Knative service: ${serviceName}`);
-            const { data } = await client.mutate({
-                mutation: UPDATE_KNATIVE_SERVICE,
+            coreExports.info(`Fetching existing Knative service: ${serviceName}`);
+            const { data } = await client.query({
+                query: GET_KNATIVE_SERVICE,
                 variables: {
                     clusterId,
-                    input
+                    name: serviceName,
+                    namespace: undefined // Use default namespace
                 }
             });
-            const result = data.updateKnativeService;
-            coreExports.setOutput('service_url', result.status.url);
-            coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
-            coreExports.info(`Successfully updated Knative service: ${serviceName}`);
-            coreExports.info(`Service URL: ${result.status.url}`);
+            const existingService = data.knativeServiceByCluster;
+            if (existingService) {
+                coreExports.info(`Found existing Knative service, merging configurations`);
+                // Convert the existing service to input format
+                const existingInput = {
+                    name: existingService.name,
+                    template: existingService.template,
+                    annotations: existingService.annotations,
+                    metadata: existingService.metadata
+                };
+                // Merge the existing service with the new input, giving preference to new values
+                const mergedInput = deepMerge(existingInput, newInput);
+                coreExports.debug(`Updating Knative service with merged input: ${JSON.stringify(mergedInput, null, 2)}`);
+                // Update the service with merged configuration
+                const updateResult = await client.mutate({
+                    mutation: UPDATE_KNATIVE_SERVICE,
+                    variables: {
+                        clusterId,
+                        input: mergedInput
+                    }
+                });
+                const result = updateResult.data.updateKnativeService;
+                coreExports.setOutput('service_url', result.status.url);
+                coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
+                coreExports.info(`Successfully updated Knative service: ${serviceName}`);
+                coreExports.info(`Service URL: ${result.status.url}`);
+            }
+            else {
+                throw new Error('Service not found');
+            }
         }
         catch (error) {
-            // If service doesn't exist, create it
-            if (error instanceof Error && error.message.includes('not found')) {
+            // If service doesn't exist or query failed, create it
+            if (error instanceof Error &&
+                (error.message.includes('not found') ||
+                    error.message === 'Service not found')) {
                 coreExports.info(`Service not found, creating new Knative service: ${serviceName}`);
                 const { data } = await client.mutate({
                     mutation: CREATE_KNATIVE_SERVICE,
                     variables: {
                         clusterId,
-                        input
+                        input: newInput
                     }
                 });
                 const result = data.createKnativeService;

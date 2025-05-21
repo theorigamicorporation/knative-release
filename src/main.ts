@@ -129,10 +129,85 @@ const UPDATE_KNATIVE_SERVICE = gql`
   }
 `
 
+// GraphQL query for getting a Knative service
+const GET_KNATIVE_SERVICE = gql`
+  query KnativeServiceByCluster(
+    $clusterId: ID!
+    $name: String!
+    $namespace: String
+  ) {
+    knativeServiceByCluster(
+      clusterId: $clusterId
+      name: $name
+      namespace: $namespace
+    ) {
+      name
+      namespace
+      template {
+        metadata {
+          annotations {
+            key
+            value
+          }
+        }
+        spec {
+          imagePullSecrets {
+            name
+          }
+          containers {
+            image
+            resources {
+              limits {
+                cpu
+                memory
+              }
+              requests {
+                cpu
+                memory
+              }
+            }
+            ports {
+              containerPort
+              name
+            }
+            env {
+              name
+              value
+            }
+          }
+        }
+      }
+      annotations {
+        key
+        value
+      }
+      creationTimestamp
+      metadata {
+        annotations {
+          key
+          value
+        }
+        labels {
+          key
+          value
+        }
+      }
+      status {
+        latestReadyRevisionName
+        url
+      }
+    }
+  }
+`
+
 /**
  * Create Apollo client for GraphQL requests
  */
-function createApolloClient(apiUrl: string, token: string, cloudTenant: string): ApolloClient<any> {
+function createApolloClient(
+  apiUrl: string,
+  token: string,
+  cloudTenant: string
+): ApolloClient<unknown> {
   const httpLink = new HttpLink({
     uri: apiUrl,
     fetch
@@ -144,7 +219,7 @@ function createApolloClient(apiUrl: string, token: string, cloudTenant: string):
         headers: {
           ...headers,
           authorization: token ? `Bearer ${token}` : '',
-          'x-tenant': cloudTenant,
+          'x-tenant': cloudTenant
         }
       }
     }
@@ -159,7 +234,7 @@ function createApolloClient(apiUrl: string, token: string, cloudTenant: string):
 /**
  * Parse JSON input or return empty array if invalid
  */
-function parseJsonInput(input: string): any[] {
+function parseJsonInput(input: string): Record<string, string>[] {
   try {
     if (!input) return []
     return JSON.parse(input)
@@ -169,6 +244,52 @@ function parseJsonInput(input: string): any[] {
     )
     return []
   }
+}
+
+/**
+ * Deep merge two objects
+ * @param target The target object to merge into
+ * @param source The source object to merge from
+ * @returns The merged object
+ */
+function deepMerge<T extends Record<string, unknown>>(
+  target: T,
+  source: Record<string, unknown>
+): T {
+  const output = { ...target } as T
+
+  if (isObject(target) && isObject(source)) {
+    Object.keys(source).forEach((key) => {
+      const targetValue = target[key]
+      const sourceValue = source[key]
+
+      if (isObject(sourceValue)) {
+        if (!(key in target)) {
+          Object.assign(output, { [key]: sourceValue })
+        } else {
+          output[key as keyof T] = deepMerge(
+            targetValue as Record<string, unknown>,
+            sourceValue as Record<string, unknown>
+          ) as unknown as T[keyof T]
+        }
+      } else if (Array.isArray(sourceValue)) {
+        // For arrays, we'll replace the entire array
+        // (this is appropriate for env vars, annotations, etc.)
+        output[key as keyof T] = sourceValue as unknown as T[keyof T]
+      } else {
+        Object.assign(output, { [key]: sourceValue })
+      }
+    })
+  }
+
+  return output
+}
+
+/**
+ * Check if value is an object
+ */
+function isObject(item: unknown): item is Record<string, unknown> {
+  return Boolean(item && typeof item === 'object' && !Array.isArray(item))
 }
 
 /**
@@ -195,7 +316,8 @@ export async function run(): Promise<void> {
       core.getInput('image_pull_secret_name') || 'regcred'
 
     // Get environment variables
-    const apiUrl = process.env.RSO_API_URL || 'https://gateway.cloud.rso.dev/graphql'
+    const apiUrl =
+      process.env.RSO_API_URL || 'https://gateway.cloud.rso.dev/graphql'
     const apiToken = process.env.RSO_DEV_ACCESS_TOKEN
     const cloudTenant = process.env.RSO_CLOUD_TENANT
     const clusterId = 'toc-cluster-prod-o4'
@@ -213,8 +335,11 @@ export async function run(): Promise<void> {
     const annotations = parseJsonInput(annotationsJson)
     const labels = parseJsonInput(labelsJson)
 
-    // Prepare the input for the GraphQL mutation
-    const input = {
+    // Create Apollo client
+    const client = createApolloClient(apiUrl, apiToken, cloudTenant)
+
+    // Prepare the new input based on provided parameters
+    const newInput = {
       name: serviceName,
       template: {
         metadata: {
@@ -256,32 +381,62 @@ export async function run(): Promise<void> {
       }
     }
 
-    core.debug(
-      `Creating/updating Knative service with input: ${JSON.stringify(input, null, 2)}`
-    )
-
-    // Create Apollo client
-    const client = createApolloClient(apiUrl, apiToken, cloudTenant)
-
-    // First try to update - if it fails with NotFound, try to create instead
+    // First try to get the existing service
     try {
-      core.info(`Attempting to update existing Knative service: ${serviceName}`)
-      const { data } = await client.mutate({
-        mutation: UPDATE_KNATIVE_SERVICE,
+      core.info(`Fetching existing Knative service: ${serviceName}`)
+      const { data } = await client.query({
+        query: GET_KNATIVE_SERVICE,
         variables: {
           clusterId,
-          input
+          name: serviceName,
+          namespace: undefined // Use default namespace
         }
       })
 
-      const result = data.updateKnativeService
-      core.setOutput('service_url', result.status.url)
-      core.setOutput('revision_name', result.status.latestReadyRevisionName)
-      core.info(`Successfully updated Knative service: ${serviceName}`)
-      core.info(`Service URL: ${result.status.url}`)
+      const existingService = data.knativeServiceByCluster
+
+      if (existingService) {
+        core.info(`Found existing Knative service, merging configurations`)
+
+        // Convert the existing service to input format
+        const existingInput = {
+          name: existingService.name,
+          template: existingService.template,
+          annotations: existingService.annotations,
+          metadata: existingService.metadata
+        }
+
+        // Merge the existing service with the new input, giving preference to new values
+        const mergedInput = deepMerge(existingInput, newInput)
+
+        core.debug(
+          `Updating Knative service with merged input: ${JSON.stringify(mergedInput, null, 2)}`
+        )
+
+        // Update the service with merged configuration
+        const updateResult = await client.mutate({
+          mutation: UPDATE_KNATIVE_SERVICE,
+          variables: {
+            clusterId,
+            input: mergedInput
+          }
+        })
+
+        const result = updateResult.data.updateKnativeService
+        core.setOutput('service_url', result.status.url)
+        core.setOutput('revision_name', result.status.latestReadyRevisionName)
+        core.info(`Successfully updated Knative service: ${serviceName}`)
+        core.info(`Service URL: ${result.status.url}`)
+      } else {
+        throw new Error('Service not found')
+      }
     } catch (error) {
-      // If service doesn't exist, create it
-      if (error instanceof Error && error.message.includes('not found')) {
+      // If service doesn't exist or query failed, create it
+      if (
+        error instanceof Error &&
+        (error.message.includes('not found') ||
+          error.message === 'Service not found')
+      ) {
         core.info(
           `Service not found, creating new Knative service: ${serviceName}`
         )
@@ -290,7 +445,7 @@ export async function run(): Promise<void> {
           mutation: CREATE_KNATIVE_SERVICE,
           variables: {
             clusterId,
-            input
+            input: newInput
           }
         })
 

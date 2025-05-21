@@ -1,6 +1,9 @@
 name: Deploy Knative Service
 description:
-  Create or update a Knative Service without dealing with Kubernetes complexity
+  Create or update a Knative Service without dealing with Kubernetes complexity.
+  When updating an existing service, this action will automatically fetch the
+  current configuration and intelligently merge it with your new settings,
+  preserving existing values while applying your changes.
 author: The Origami Corporation
 
 branding:
