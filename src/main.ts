@@ -134,7 +134,6 @@ const GET_KNATIVE_SERVICE = gql`
   query KnativeServiceByCluster(
     $clusterId: ID!
     $name: String!
-    $namespace: String
   ) {
     knativeServiceByCluster(
       clusterId: $clusterId
@@ -389,7 +388,7 @@ export async function run(): Promise<void> {
         variables: {
           clusterId,
           name: serviceName,
-          namespace: undefined // Use default namespace
+          namespace: cloudTenant,
         }
       })
 
