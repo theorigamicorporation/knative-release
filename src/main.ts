@@ -431,32 +431,88 @@ export async function run(): Promise<void> {
         throw new Error('Service not found')
       }
     } catch (error) {
-      // If service doesn't exist or query failed, create it
+      // If the GraphQL query returned an error related to service not existing
       if (
         error instanceof Error &&
         (error.message.includes('not found') ||
-          error.message === 'Service not found')
+          error.message === 'Service not found') &&
+        !error.message.includes('already exists')
       ) {
         core.info(
           `Service not found, creating new Knative service: ${serviceName}`
         )
 
-        const { data } = await client.mutate({
-          mutation: CREATE_KNATIVE_SERVICE,
-          variables: {
-            clusterId,
-            input: newInput
-          }
-        })
+        try {
+          const { data } = await client.mutate({
+            mutation: CREATE_KNATIVE_SERVICE,
+            variables: {
+              clusterId,
+              input: newInput
+            }
+          })
 
-        const result = data.createKnativeService
-        core.setOutput('service_url', result.status.url)
-        core.setOutput('revision_name', result.status.latestReadyRevisionName)
-        core.info(`Successfully created Knative service: ${serviceName}`)
-        core.info(`Service URL: ${result.status.url}`)
+          const result = data.createKnativeService
+          core.setOutput('service_url', result.status.url)
+          core.setOutput('revision_name', result.status.latestReadyRevisionName)
+          core.info(`Successfully created Knative service: ${serviceName}`)
+          core.info(`Service URL: ${result.status.url}`)
+        } catch (createError) {
+          // If creation fails with "already exists" error, try updating instead
+          if (
+            createError instanceof Error &&
+            createError.message.includes('already exists')
+          ) {
+            core.info(
+              `Service appears to already exist despite query failure. Trying to update instead.`
+            )
+            
+            // Since we couldn't get the existing service data, we'll just use the new input
+            const { data } = await client.mutate({
+              mutation: UPDATE_KNATIVE_SERVICE,
+              variables: {
+                clusterId,
+                input: newInput
+              }
+            })
+
+            const result = data.updateKnativeService
+            core.setOutput('service_url', result.status.url)
+            core.setOutput('revision_name', result.status.latestReadyRevisionName)
+            core.info(`Successfully updated Knative service: ${serviceName}`)
+            core.info(`Service URL: ${result.status.url}`)
+          } else {
+            // Some other error occurred during creation
+            throw createError
+          }
+        }
       } else {
-        // Some other error occurred
-        throw error
+        // If a service-exists error occurred during the initial query
+        if (
+          error instanceof Error &&
+          error.message.includes('already exists')
+        ) {
+          core.info(
+            `Service appears to already exist despite query failure. Trying to update instead.`
+          )
+          
+          // Since we couldn't get the existing service data, we'll just use the new input
+          const { data } = await client.mutate({
+            mutation: UPDATE_KNATIVE_SERVICE,
+            variables: {
+              clusterId,
+              input: newInput
+            }
+          })
+
+          const result = data.updateKnativeService
+          core.setOutput('service_url', result.status.url)
+          core.setOutput('revision_name', result.status.latestReadyRevisionName)
+          core.info(`Successfully updated Knative service: ${serviceName}`)
+          core.info(`Service URL: ${result.status.url}`)
+        } else {
+          // Some other error occurred
+          throw error
+        }
       }
     }
   } catch (error) {

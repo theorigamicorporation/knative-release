@@ -125174,7 +125174,7 @@ const GET_KNATIVE_SERVICE = gql `
   query KnativeServiceByCluster(
     $clusterId: ID!
     $name: String!
-    $namespace: String
+    $namespace: String!
   ) {
     knativeServiceByCluster(
       clusterId: $clusterId
@@ -125398,7 +125398,7 @@ async function run() {
                 variables: {
                     clusterId,
                     name: serviceName,
-                    namespace: undefined // Use default namespace
+                    namespace: cloudTenant
                 }
             });
             const existingService = data.knativeServiceByCluster;
@@ -125433,27 +125433,74 @@ async function run() {
             }
         }
         catch (error) {
-            // If service doesn't exist or query failed, create it
+            // If the GraphQL query returned an error related to service not existing
             if (error instanceof Error &&
                 (error.message.includes('not found') ||
-                    error.message === 'Service not found')) {
+                    error.message === 'Service not found') &&
+                !error.message.includes('already exists')) {
                 coreExports.info(`Service not found, creating new Knative service: ${serviceName}`);
-                const { data } = await client.mutate({
-                    mutation: CREATE_KNATIVE_SERVICE,
-                    variables: {
-                        clusterId,
-                        input: newInput
+                try {
+                    const { data } = await client.mutate({
+                        mutation: CREATE_KNATIVE_SERVICE,
+                        variables: {
+                            clusterId,
+                            input: newInput
+                        }
+                    });
+                    const result = data.createKnativeService;
+                    coreExports.setOutput('service_url', result.status.url);
+                    coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
+                    coreExports.info(`Successfully created Knative service: ${serviceName}`);
+                    coreExports.info(`Service URL: ${result.status.url}`);
+                }
+                catch (createError) {
+                    // If creation fails with "already exists" error, try updating instead
+                    if (createError instanceof Error &&
+                        createError.message.includes('already exists')) {
+                        coreExports.info(`Service appears to already exist despite query failure. Trying to update instead.`);
+                        // Since we couldn't get the existing service data, we'll just use the new input
+                        const { data } = await client.mutate({
+                            mutation: UPDATE_KNATIVE_SERVICE,
+                            variables: {
+                                clusterId,
+                                input: newInput
+                            }
+                        });
+                        const result = data.updateKnativeService;
+                        coreExports.setOutput('service_url', result.status.url);
+                        coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
+                        coreExports.info(`Successfully updated Knative service: ${serviceName}`);
+                        coreExports.info(`Service URL: ${result.status.url}`);
                     }
-                });
-                const result = data.createKnativeService;
-                coreExports.setOutput('service_url', result.status.url);
-                coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
-                coreExports.info(`Successfully created Knative service: ${serviceName}`);
-                coreExports.info(`Service URL: ${result.status.url}`);
+                    else {
+                        // Some other error occurred during creation
+                        throw createError;
+                    }
+                }
             }
             else {
-                // Some other error occurred
-                throw error;
+                // If a service-exists error occurred during the initial query
+                if (error instanceof Error &&
+                    error.message.includes('already exists')) {
+                    coreExports.info(`Service appears to already exist despite query failure. Trying to update instead.`);
+                    // Since we couldn't get the existing service data, we'll just use the new input
+                    const { data } = await client.mutate({
+                        mutation: UPDATE_KNATIVE_SERVICE,
+                        variables: {
+                            clusterId,
+                            input: newInput
+                        }
+                    });
+                    const result = data.updateKnativeService;
+                    coreExports.setOutput('service_url', result.status.url);
+                    coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
+                    coreExports.info(`Successfully updated Knative service: ${serviceName}`);
+                    coreExports.info(`Service URL: ${result.status.url}`);
+                }
+                else {
+                    // Some other error occurred
+                    throw error;
+                }
             }
         }
     }
