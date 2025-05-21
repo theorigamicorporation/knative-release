@@ -208,10 +208,6 @@ export async function run(): Promise<void> {
       throw new Error('RSO_API_TOKEN environment variable is required')
     }
 
-    if (!clusterId) {
-      throw new Error('RSO_CLUSTER_ID environment variable is required')
-    }
-
     // Parse JSON inputs
     const envVars = parseJsonInput(envVarsJson)
     const annotations = parseJsonInput(annotationsJson)
