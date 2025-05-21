@@ -37,13 +37,17 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.11.1"
+    "@actions/core": "^1.11.1",
+    "@apollo/client": "^3.8.10",
+    "cross-fetch": "^4.0.0",
+    "graphql": "^16.9.0"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.9",
     "@github/local-action": "^3.2.1",
     "@jest/globals": "^29.7.0",
     "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.1",
     "@types/jest": "^29.5.14",
