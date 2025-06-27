@@ -14,7 +14,7 @@ permissions:
 jobs:
   test-typescript:
     name: TypeScript Tests
-    runs-on: ubuntu-latest
+    runs-on: o4-k8s-runner-set-o4
 
     steps:
       - name: Checkout
