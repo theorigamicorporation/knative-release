@@ -297,25 +297,25 @@ function isObject(item: unknown): item is Record<string, unknown> {
  */
 function removeTypenames<T>(obj: T): T {
   if (!obj || typeof obj !== 'object') return obj
-  
+
   if (Array.isArray(obj)) {
     return obj.map(removeTypenames) as unknown as T
   }
-  
+
   const result = { ...obj } as Record<string, unknown>
-  
+
   // Remove __typename field if it exists
   if ('__typename' in result) {
     delete result.__typename
   }
-  
+
   // Process all properties recursively
   for (const key in result) {
     if (result[key] && typeof result[key] === 'object') {
       result[key] = removeTypenames(result[key])
     }
   }
-  
+
   return result as T
 }
 
@@ -394,7 +394,7 @@ export async function run(): Promise<void> {
             }
           ]
         }
-      },
+      }
     }
 
     // First try to get the existing service
@@ -417,7 +417,7 @@ export async function run(): Promise<void> {
         // Convert the existing service to input format
         const existingInput = {
           name: existingService.name,
-          template: existingService.template,
+          template: existingService.template
         }
 
         // Remove __typename fields from the existing service data
@@ -482,7 +482,7 @@ export async function run(): Promise<void> {
             core.info(
               `Service appears to already exist despite query failure. Trying to update instead.`
             )
-            
+
             // Since we couldn't get the existing service data, we'll just use the new input
             const { data } = await client.mutate({
               mutation: UPDATE_KNATIVE_SERVICE,
@@ -494,7 +494,10 @@ export async function run(): Promise<void> {
 
             const result = data.updateKnativeService
             core.setOutput('service_url', result.status.url)
-            core.setOutput('revision_name', result.status.latestReadyRevisionName)
+            core.setOutput(
+              'revision_name',
+              result.status.latestReadyRevisionName
+            )
             core.info(`Successfully updated Knative service: ${serviceName}`)
             core.info(`Service URL: ${result.status.url}`)
           } else {
@@ -511,7 +514,7 @@ export async function run(): Promise<void> {
           core.info(
             `Service appears to already exist despite query failure. Trying to update instead.`
           )
-          
+
           // Since we couldn't get the existing service data, we'll just use the new input
           const { data } = await client.mutate({
             mutation: UPDATE_KNATIVE_SERVICE,
