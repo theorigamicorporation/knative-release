@@ -46,7 +46,7 @@ jobs:
 
   test-action:
     name: GitHub Actions Test
-    runs-on: ubuntu-latest
+    runs-on: o4-k8s-runner-set-o4
 
     steps:
       - name: Checkout
@@ -57,8 +57,15 @@ jobs:
         id: test-action
         uses: ./
         with:
-          milliseconds: 2000
+          service_name: test-service
+          image: nginx:latest
+        env:
+          RSO_CLOUD_TENANT: test-tenant
+          RSO_API_TOKEN: test-token
+        continue-on-error: true
 
       - name: Print Output
         id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+        run: |
+          echo "Service URL: ${{ steps.test-action.outputs.service_url }}"
+          echo "Revision Name: ${{ steps.test-action.outputs.revision_name }}"
