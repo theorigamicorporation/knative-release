@@ -2,203 +2,8 @@ import * as core from '@actions/core'
 import { ApolloClient, InMemoryCache, HttpLink, gql } from '@apollo/client'
 import { setContext } from '@apollo/client/link/context'
 import fetch from 'cross-fetch'
-
-// GraphQL mutation for creating a Knative service
-const CREATE_KNATIVE_SERVICE = gql`
-  mutation CreateKnativeService($clusterId: ID!, $input: KnativeServiceInput!) {
-    createKnativeService(clusterId: $clusterId, input: $input) {
-      name
-      namespace
-      template {
-        metadata {
-          annotations {
-            key
-            value
-          }
-        }
-        spec {
-          imagePullSecrets {
-            name
-          }
-          containers {
-            image
-            resources {
-              limits {
-                cpu
-                memory
-              }
-              requests {
-                cpu
-                memory
-              }
-            }
-            ports {
-              containerPort
-              name
-            }
-            env {
-              name
-              value
-            }
-          }
-        }
-      }
-      annotations {
-        key
-        value
-      }
-      creationTimestamp
-      metadata {
-        annotations {
-          key
-          value
-        }
-        labels {
-          key
-          value
-        }
-      }
-      status {
-        latestReadyRevisionName
-        url
-      }
-    }
-  }
-`
-
-// GraphQL mutation for updating a Knative service
-const UPDATE_KNATIVE_SERVICE = gql`
-  mutation UpdateKnativeService($clusterId: ID!, $input: KnativeServiceInput!) {
-    updateKnativeService(clusterId: $clusterId, input: $input) {
-      name
-      namespace
-      template {
-        metadata {
-          annotations {
-            key
-            value
-          }
-        }
-        spec {
-          imagePullSecrets {
-            name
-          }
-          containers {
-            image
-            resources {
-              limits {
-                cpu
-                memory
-              }
-              requests {
-                cpu
-                memory
-              }
-            }
-            ports {
-              containerPort
-              name
-            }
-            env {
-              name
-              value
-            }
-          }
-        }
-      }
-      annotations {
-        key
-        value
-      }
-      creationTimestamp
-      metadata {
-        annotations {
-          key
-          value
-        }
-        labels {
-          key
-          value
-        }
-      }
-      status {
-        latestReadyRevisionName
-        url
-      }
-    }
-  }
-`
-
-// GraphQL query for getting a Knative service
-const GET_KNATIVE_SERVICE = gql`
-  query KnativeServiceByCluster(
-    $clusterId: ID!
-    $name: String!
-    $namespace: String!
-  ) {
-    knativeServiceByCluster(
-      clusterId: $clusterId
-      name: $name
-      namespace: $namespace
-    ) {
-      name
-      namespace
-      template {
-        metadata {
-          annotations {
-            key
-            value
-          }
-        }
-        spec {
-          imagePullSecrets {
-            name
-          }
-          containers {
-            image
-            resources {
-              limits {
-                cpu
-                memory
-              }
-              requests {
-                cpu
-                memory
-              }
-            }
-            ports {
-              containerPort
-              name
-            }
-            env {
-              name
-              value
-            }
-          }
-        }
-      }
-      annotations {
-        key
-        value
-      }
-      creationTimestamp
-      metadata {
-        annotations {
-          key
-          value
-        }
-        labels {
-          key
-          value
-        }
-      }
-      status {
-        latestReadyRevisionName
-        url
-      }
-    }
-  }
-`
+import { CREATE_KNATIVE_SERVICE, UPDATE_KNATIVE_SERVICE } from './graphql/mutations.js'
+import { GET_KNATIVE_SERVICE } from './graphql/queries.js'
 
 /**
  * Create Apollo client for GraphQL requests
@@ -340,6 +145,44 @@ export async function run(): Promise<void> {
     const imagePullSecretName =
       core.getInput('image_pull_secret_name') || 'regcred'
 
+    // Validate and clean image name
+    const cleanImage = image.trim()
+    if (!cleanImage) {
+      throw new Error('Image name cannot be empty')
+    }
+    
+    // Validate image format
+    if (cleanImage.endsWith(':')) {
+      throw new Error('Image name cannot end with a colon. Please provide a valid image tag.')
+    }
+    
+    // Check if image has a valid format
+    if (!cleanImage.includes('/') && !cleanImage.includes(':')) {
+      core.warning('Image name does not include a registry or tag. Consider using a full image reference.')
+    }
+    
+    // Log input parameters for debugging
+    core.info(`Service name: ${serviceName}`)
+    core.info(`Image: ${cleanImage}`)
+    core.info(`Container port: ${containerPort}`)
+    core.info(`Resource limits - CPU: ${resourceLimitsCpu}, Memory: ${resourceLimitsMemory}`)
+    core.info(`Resource requests - CPU: ${resourceRequestsCpu}, Memory: ${resourceRequestsMemory}`)
+    core.info(`Image pull secret: ${imagePullSecretName}`)
+    
+    // Validate resource limits format
+    if (resourceLimitsCpu && !resourceLimitsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)) {
+      throw new Error('Resource limits CPU must be in format like "500m", "0.5", or "1"')
+    }
+    if (resourceLimitsMemory && !resourceLimitsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)) {
+      throw new Error('Resource limits Memory must be in format like "512Mi", "1Gi", etc.')
+    }
+    if (resourceRequestsCpu && !resourceRequestsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)) {
+      throw new Error('Resource requests CPU must be in format like "100m", "0.1", or "1"')
+    }
+    if (resourceRequestsMemory && !resourceRequestsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)) {
+      throw new Error('Resource requests Memory must be in format like "128Mi", "1Gi", etc.')
+    }
+
     // Get environment variables
     const apiUrl =
       process.env.RSO_API_URL || 'https://gateway.cloud.rso.dev/graphql'
@@ -347,19 +190,63 @@ export async function run(): Promise<void> {
     const cloudTenant = process.env.RSO_CLOUD_TENANT
     const clusterId = 'toc-cluster-prod-o4'
 
+    core.info(`Using API URL: ${apiUrl}`)
+    core.info(`Cloud tenant: ${cloudTenant}`)
+    core.info(`Cluster ID: ${clusterId}`)
+
     if (!cloudTenant) {
       throw new Error('RSO_CLOUD_TENANT environment variable is required')
     }
 
     if (!apiToken) {
-      throw new Error('RSO_API_TOKEN environment variable is required')
+      throw new Error('RSO_DEV_ACCESS_TOKEN environment variable is required')
+    }
+
+    // Validate API URL
+    try {
+      new URL(apiUrl)
+    } catch (error) {
+      throw new Error(`Invalid API URL: ${apiUrl}`)
     }
 
     // Parse JSON inputs
     const envVars = parseJsonInput(envVarsJson)
+    core.debug(`Parsed environment variables: ${JSON.stringify(envVars, null, 2)}`)
+    
+    // Validate environment variables format
+    if (envVars.length > 0) {
+      for (const envVar of envVars) {
+        if (!envVar.name || typeof envVar.name !== 'string') {
+          throw new Error('Environment variables must have a "name" field')
+        }
+        if (!envVar.value || typeof envVar.value !== 'string') {
+          throw new Error('Environment variables must have a "value" field')
+        }
+      }
+    }
 
     // Create Apollo client
     const client = createApolloClient(apiUrl, apiToken, cloudTenant)
+    
+    // Test the connection
+    core.info('Testing GraphQL connection...')
+    try {
+      // Simple introspection query to test connection
+      const testQuery = gql`
+        query {
+          __schema {
+            queryType {
+              name
+            }
+          }
+        }
+      `
+      await client.query({ query: testQuery })
+      core.info('GraphQL connection successful')
+    } catch (error) {
+      core.error(`GraphQL connection test failed: ${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(`Failed to connect to GraphQL API: ${error instanceof Error ? error.message : String(error)}`)
+    }
 
     // Prepare the new input based on provided parameters
     const newInput = {
@@ -368,7 +255,7 @@ export async function run(): Promise<void> {
         spec: {
           containers: [
             {
-              image,
+              image: cleanImage,
               env: envVars,
               resources: {
                 limits: {
@@ -400,6 +287,8 @@ export async function run(): Promise<void> {
     // First try to get the existing service
     try {
       core.info(`Fetching existing Knative service: ${serviceName}`)
+      core.debug(`Query variables: clusterId=${clusterId}, name=${serviceName}, namespace=${cloudTenant}`)
+      
       const { data } = await client.query({
         query: GET_KNATIVE_SERVICE,
         variables: {
@@ -431,6 +320,8 @@ export async function run(): Promise<void> {
         )
 
         // Update the service with merged configuration
+        core.debug(`Updating service with variables: clusterId=${clusterId}, input=${JSON.stringify(mergedInput, null, 2)}`)
+        
         const updateResult = await client.mutate({
           mutation: UPDATE_KNATIVE_SERVICE,
           variables: {
@@ -448,6 +339,9 @@ export async function run(): Promise<void> {
         throw new Error('Service not found')
       }
     } catch (error) {
+      core.error(`GraphQL query error: ${error instanceof Error ? error.message : String(error)}`)
+      core.debug(`Full error details: ${JSON.stringify(error, null, 2)}`)
+      
       // If the GraphQL query returned an error related to service not existing
       if (
         error instanceof Error &&
@@ -460,6 +354,8 @@ export async function run(): Promise<void> {
         )
 
         try {
+          core.debug(`Creating service with variables: clusterId=${clusterId}, input=${JSON.stringify(newInput, null, 2)}`)
+          
           const { data } = await client.mutate({
             mutation: CREATE_KNATIVE_SERVICE,
             variables: {
@@ -474,6 +370,9 @@ export async function run(): Promise<void> {
           core.info(`Successfully created Knative service: ${serviceName}`)
           core.info(`Service URL: ${result.status.url}`)
         } catch (createError) {
+          core.error(`Create mutation error: ${createError instanceof Error ? createError.message : String(createError)}`)
+          core.debug(`Full create error details: ${JSON.stringify(createError, null, 2)}`)
+          
           // If creation fails with "already exists" error, try updating instead
           if (
             createError instanceof Error &&
@@ -502,6 +401,7 @@ export async function run(): Promise<void> {
             core.info(`Service URL: ${result.status.url}`)
           } else {
             // Some other error occurred during creation
+            core.error(`Unexpected error during service creation: ${createError instanceof Error ? createError.message : String(createError)}`)
             throw createError
           }
         }
@@ -531,6 +431,7 @@ export async function run(): Promise<void> {
           core.info(`Service URL: ${result.status.url}`)
         } else {
           // Some other error occurred
+          core.error(`Unexpected error during service query: ${error instanceof Error ? error.message : String(error)}`)
           throw error
         }
       }
