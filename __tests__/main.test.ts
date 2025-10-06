@@ -29,22 +29,22 @@ describe('main.ts', () => {
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks()
-    
+
     // Set up default mock implementations for required inputs
     core.getInput.mockImplementation((name: string) => {
       const inputs: Record<string, string> = {
-        'service_name': 'test-service',
-        'image': 'test-image:latest',
-        'env_vars': '{}',
-        'resource_limits_cpu': '100m',
-        'resource_limits_memory': '512Mi',
-        'resource_requests_cpu': '50m',
-        'resource_requests_memory': '256Mi',
-        'container_port': '8080',
-        'port_name': 'http1',
-        'image_pull_secret_name': 'regcred',
-        'graphql_endpoint': 'http://localhost:4000/graphql',
-        'graphql_auth_token': 'test-token'
+        service_name: 'test-service',
+        image: 'test-image:latest',
+        env_vars: '{}',
+        resource_limits_cpu: '100m',
+        resource_limits_memory: '512Mi',
+        resource_requests_cpu: '50m',
+        resource_requests_memory: '256Mi',
+        container_port: '8080',
+        port_name: 'http1',
+        image_pull_secret_name: 'regcred',
+        graphql_endpoint: 'http://localhost:4000/graphql',
+        graphql_auth_token: 'test-token'
       }
       return inputs[name] || ''
     })
