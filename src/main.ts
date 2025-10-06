@@ -237,6 +237,9 @@ export async function run(): Promise<void> {
     try {
       new URL(apiUrl)
     } catch (error) {
+      core.error(
+        `Invalid API URL: ${apiUrl} - ${error instanceof Error ? error.message : String(error)}`
+      )
       throw new Error(`Invalid API URL: ${apiUrl}`)
     }
 
