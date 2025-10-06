@@ -63,7 +63,7 @@ This GitHub Action allows you to easily deploy applications to
 | ---------------- | ------------------------------------------------- | -------- |
 | `RSO_API_TOKEN`  | Authentication token for the RSO API              | Yes      |
 | `RSO_CLUSTER_ID` | ID of the Kubernetes cluster to deploy to         | Yes      |
-| `RSO_API_URL`    | API URL (defaults to https://api.rso.dev/GraphQL) | No       |
+| `RSO_API_URL`    | API URL (defaults to <https://api.rso.dev/GraphQL>) | No       |
 
 ## Outputs
 
@@ -100,9 +100,9 @@ This GitHub Action allows you to easily deploy applications to
 This action:
 
 1. Takes your inputs and constructs a Knative service definition
-2. First attempts to update an existing service with the same name
-3. If the service doesn't exist, creates a new one
-4. Returns the service URL and revision name as outputs
+1. First attempts to update an existing service with the same name
+1. If the service doesn't exist, creates a new one
+1. Returns the service URL and revision name as outputs
 
 ## Behind the Scenes
 
