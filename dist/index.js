@@ -125494,16 +125494,20 @@ async function run() {
         coreExports.info(`Resource requests - CPU: ${resourceRequestsCpu}, Memory: ${resourceRequestsMemory}`);
         coreExports.info(`Image pull secret: ${imagePullSecretName}`);
         // Validate resource limits format
-        if (resourceLimitsCpu && !resourceLimitsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)) {
+        if (resourceLimitsCpu &&
+            !resourceLimitsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)) {
             throw new Error('Resource limits CPU must be in format like "500m", "0.5", or "1"');
         }
-        if (resourceLimitsMemory && !resourceLimitsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)) {
+        if (resourceLimitsMemory &&
+            !resourceLimitsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)) {
             throw new Error('Resource limits Memory must be in format like "512Mi", "1Gi", etc.');
         }
-        if (resourceRequestsCpu && !resourceRequestsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)) {
+        if (resourceRequestsCpu &&
+            !resourceRequestsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)) {
             throw new Error('Resource requests CPU must be in format like "100m", "0.1", or "1"');
         }
-        if (resourceRequestsMemory && !resourceRequestsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)) {
+        if (resourceRequestsMemory &&
+            !resourceRequestsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)) {
             throw new Error('Resource requests Memory must be in format like "128Mi", "1Gi", etc.');
         }
         // Get environment variables
@@ -125525,6 +125529,7 @@ async function run() {
             new URL(apiUrl);
         }
         catch (error) {
+            coreExports.error(`Invalid API URL: ${apiUrl} - ${error instanceof Error ? error.message : String(error)}`);
             throw new Error(`Invalid API URL: ${apiUrl}`);
         }
         // Parse JSON inputs
