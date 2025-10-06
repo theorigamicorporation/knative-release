@@ -5,4 +5,4 @@
 self-hosted-runner:
   # Labels for self-hosted runners
   labels:
-    - o4-k8s-runner-set-o4 
+    - o4-k8s-runner-set-o4

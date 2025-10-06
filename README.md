@@ -63,7 +63,7 @@ This GitHub Action allows you to easily deploy applications to
 | ---------------- | ------------------------------------------------- | -------- |
 | `RSO_API_TOKEN`  | Authentication token for the RSO API              | Yes      |
 | `RSO_CLUSTER_ID` | ID of the Kubernetes cluster to deploy to         | Yes      |
-| `RSO_API_URL`    | API URL (defaults to https://api.rso.dev/graphql) | No       |
+| `RSO_API_URL`    | API URL (defaults to https://api.rso.dev/GraphQL) | No       |
 
 ## Outputs
 

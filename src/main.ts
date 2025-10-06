@@ -2,7 +2,10 @@ import * as core from '@actions/core'
 import { ApolloClient, InMemoryCache, HttpLink, gql } from '@apollo/client'
 import { setContext } from '@apollo/client/link/context'
 import fetch from 'cross-fetch'
-import { CREATE_KNATIVE_SERVICE, UPDATE_KNATIVE_SERVICE } from './graphql/mutations.js'
+import {
+  CREATE_KNATIVE_SERVICE,
+  UPDATE_KNATIVE_SERVICE
+} from './graphql/mutations.js'
 import { GET_KNATIVE_SERVICE } from './graphql/queries.js'
 
 /**
@@ -150,37 +153,65 @@ export async function run(): Promise<void> {
     if (!cleanImage) {
       throw new Error('Image name cannot be empty')
     }
-    
+
     // Validate image format
     if (cleanImage.endsWith(':')) {
-      throw new Error('Image name cannot end with a colon. Please provide a valid image tag.')
+      throw new Error(
+        'Image name cannot end with a colon. Please provide a valid image tag.'
+      )
     }
-    
+
     // Check if image has a valid format
     if (!cleanImage.includes('/') && !cleanImage.includes(':')) {
-      core.warning('Image name does not include a registry or tag. Consider using a full image reference.')
+      core.warning(
+        'Image name does not include a registry or tag. Consider using a full image reference.'
+      )
     }
-    
+
     // Log input parameters for debugging
     core.info(`Service name: ${serviceName}`)
     core.info(`Image: ${cleanImage}`)
     core.info(`Container port: ${containerPort}`)
-    core.info(`Resource limits - CPU: ${resourceLimitsCpu}, Memory: ${resourceLimitsMemory}`)
-    core.info(`Resource requests - CPU: ${resourceRequestsCpu}, Memory: ${resourceRequestsMemory}`)
+    core.info(
+      `Resource limits - CPU: ${resourceLimitsCpu}, Memory: ${resourceLimitsMemory}`
+    )
+    core.info(
+      `Resource requests - CPU: ${resourceRequestsCpu}, Memory: ${resourceRequestsMemory}`
+    )
     core.info(`Image pull secret: ${imagePullSecretName}`)
-    
+
     // Validate resource limits format
-    if (resourceLimitsCpu && !resourceLimitsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)) {
-      throw new Error('Resource limits CPU must be in format like "500m", "0.5", or "1"')
+    if (
+      resourceLimitsCpu &&
+      !resourceLimitsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)
+    ) {
+      throw new Error(
+        'Resource limits CPU must be in format like "500m", "0.5", or "1"'
+      )
     }
-    if (resourceLimitsMemory && !resourceLimitsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)) {
-      throw new Error('Resource limits Memory must be in format like "512Mi", "1Gi", etc.')
+    if (
+      resourceLimitsMemory &&
+      !resourceLimitsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)
+    ) {
+      throw new Error(
+        'Resource limits Memory must be in format like "512Mi", "1Gi", etc.'
+      )
     }
-    if (resourceRequestsCpu && !resourceRequestsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)) {
-      throw new Error('Resource requests CPU must be in format like "100m", "0.1", or "1"')
+    if (
+      resourceRequestsCpu &&
+      !resourceRequestsCpu.match(/^\d+m$|^\d+\.\d+$|^\d+$/)
+    ) {
+      throw new Error(
+        'Resource requests CPU must be in format like "100m", "0.1", or "1"'
+      )
     }
-    if (resourceRequestsMemory && !resourceRequestsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)) {
-      throw new Error('Resource requests Memory must be in format like "128Mi", "1Gi", etc.')
+    if (
+      resourceRequestsMemory &&
+      !resourceRequestsMemory.match(/^\d+[KMGTPEZYkmgtpezy]i?$/)
+    ) {
+      throw new Error(
+        'Resource requests Memory must be in format like "128Mi", "1Gi", etc.'
+      )
     }
 
     // Get environment variables
@@ -211,8 +242,10 @@ export async function run(): Promise<void> {
 
     // Parse JSON inputs
     const envVars = parseJsonInput(envVarsJson)
-    core.debug(`Parsed environment variables: ${JSON.stringify(envVars, null, 2)}`)
-    
+    core.debug(
+      `Parsed environment variables: ${JSON.stringify(envVars, null, 2)}`
+    )
+
     // Validate environment variables format
     if (envVars.length > 0) {
       for (const envVar of envVars) {
@@ -227,7 +260,7 @@ export async function run(): Promise<void> {
 
     // Create Apollo client
     const client = createApolloClient(apiUrl, apiToken, cloudTenant)
-    
+
     // Test the connection
     core.info('Testing GraphQL connection...')
     try {
@@ -244,8 +277,12 @@ export async function run(): Promise<void> {
       await client.query({ query: testQuery })
       core.info('GraphQL connection successful')
     } catch (error) {
-      core.error(`GraphQL connection test failed: ${error instanceof Error ? error.message : String(error)}`)
-      throw new Error(`Failed to connect to GraphQL API: ${error instanceof Error ? error.message : String(error)}`)
+      core.error(
+        `GraphQL connection test failed: ${error instanceof Error ? error.message : String(error)}`
+      )
+      throw new Error(
+        `Failed to connect to GraphQL API: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
 
     // Prepare the new input based on provided parameters
@@ -287,8 +324,10 @@ export async function run(): Promise<void> {
     // First try to get the existing service
     try {
       core.info(`Fetching existing Knative service: ${serviceName}`)
-      core.debug(`Query variables: clusterId=${clusterId}, name=${serviceName}, namespace=${cloudTenant}`)
-      
+      core.debug(
+        `Query variables: clusterId=${clusterId}, name=${serviceName}, namespace=${cloudTenant}`
+      )
+
       const { data } = await client.query({
         query: GET_KNATIVE_SERVICE,
         variables: {
@@ -320,8 +359,10 @@ export async function run(): Promise<void> {
         )
 
         // Update the service with merged configuration
-        core.debug(`Updating service with variables: clusterId=${clusterId}, input=${JSON.stringify(mergedInput, null, 2)}`)
-        
+        core.debug(
+          `Updating service with variables: clusterId=${clusterId}, input=${JSON.stringify(mergedInput, null, 2)}`
+        )
+
         const updateResult = await client.mutate({
           mutation: UPDATE_KNATIVE_SERVICE,
           variables: {
@@ -339,9 +380,11 @@ export async function run(): Promise<void> {
         throw new Error('Service not found')
       }
     } catch (error) {
-      core.error(`GraphQL query error: ${error instanceof Error ? error.message : String(error)}`)
+      core.error(
+        `GraphQL query error: ${error instanceof Error ? error.message : String(error)}`
+      )
       core.debug(`Full error details: ${JSON.stringify(error, null, 2)}`)
-      
+
       // If the GraphQL query returned an error related to service not existing
       if (
         error instanceof Error &&
@@ -354,8 +397,10 @@ export async function run(): Promise<void> {
         )
 
         try {
-          core.debug(`Creating service with variables: clusterId=${clusterId}, input=${JSON.stringify(newInput, null, 2)}`)
-          
+          core.debug(
+            `Creating service with variables: clusterId=${clusterId}, input=${JSON.stringify(newInput, null, 2)}`
+          )
+
           const { data } = await client.mutate({
             mutation: CREATE_KNATIVE_SERVICE,
             variables: {
@@ -370,9 +415,13 @@ export async function run(): Promise<void> {
           core.info(`Successfully created Knative service: ${serviceName}`)
           core.info(`Service URL: ${result.status.url}`)
         } catch (createError) {
-          core.error(`Create mutation error: ${createError instanceof Error ? createError.message : String(createError)}`)
-          core.debug(`Full create error details: ${JSON.stringify(createError, null, 2)}`)
-          
+          core.error(
+            `Create mutation error: ${createError instanceof Error ? createError.message : String(createError)}`
+          )
+          core.debug(
+            `Full create error details: ${JSON.stringify(createError, null, 2)}`
+          )
+
           // If creation fails with "already exists" error, try updating instead
           if (
             createError instanceof Error &&
@@ -401,7 +450,9 @@ export async function run(): Promise<void> {
             core.info(`Service URL: ${result.status.url}`)
           } else {
             // Some other error occurred during creation
-            core.error(`Unexpected error during service creation: ${createError instanceof Error ? createError.message : String(createError)}`)
+            core.error(
+              `Unexpected error during service creation: ${createError instanceof Error ? createError.message : String(createError)}`
+            )
             throw createError
           }
         }
@@ -431,7 +482,9 @@ export async function run(): Promise<void> {
           core.info(`Service URL: ${result.status.url}`)
         } else {
           // Some other error occurred
-          core.error(`Unexpected error during service query: ${error instanceof Error ? error.message : String(error)}`)
+          core.error(
+            `Unexpected error during service query: ${error instanceof Error ? error.message : String(error)}`
+          )
           throw error
         }
       }

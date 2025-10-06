@@ -109,4 +109,4 @@ export const GET_KNATIVE_SERVICE = gql`
       }
     }
   }
-` 
+`

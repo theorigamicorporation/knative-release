@@ -204,4 +204,4 @@ export const UPDATE_KNATIVE_SERVICE = gql`
       }
     }
   }
-` 
+`
