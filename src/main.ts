@@ -42,7 +42,7 @@ function createApolloClient(
 /**
  * Parse JSON input or return empty array if invalid
  */
-function parseJsonInput(input: string): Record<string, string>[] {
+function parseJsonInput(input: string): Record<string, unknown>[] {
   try {
     if (!input) return []
     return JSON.parse(input)
@@ -147,6 +147,8 @@ export async function run(): Promise<void> {
     const portName = core.getInput('port_name')
     const imagePullSecretName =
       core.getInput('image_pull_secret_name') || 'regcred'
+    const volumesJson = core.getInput('volumes')
+    const volumeMountsJson = core.getInput('volume_mounts')
 
     // Validate and clean image name
     const cleanImage = image.trim()
@@ -245,9 +247,13 @@ export async function run(): Promise<void> {
 
     // Parse JSON inputs
     const envVars = parseJsonInput(envVarsJson)
+    const volumes = parseJsonInput(volumesJson)
+    const volumeMounts = parseJsonInput(volumeMountsJson)
     core.debug(
       `Parsed environment variables: ${JSON.stringify(envVars, null, 2)}`
     )
+    core.debug(`Parsed volumes: ${JSON.stringify(volumes, null, 2)}`)
+    core.debug(`Parsed volume mounts: ${JSON.stringify(volumeMounts, null, 2)}`)
 
     // Validate environment variables format
     if (envVars.length > 0) {
@@ -312,14 +318,16 @@ export async function run(): Promise<void> {
                   containerPort,
                   name: portName || undefined
                 }
-              ]
+              ],
+              volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
             }
           ],
           imagePullSecrets: [
             {
               name: imagePullSecretName
             }
-          ]
+          ],
+          volumes: volumes.length > 0 ? volumes : undefined
         }
       }
     }

@@ -125477,6 +125477,8 @@ async function run() {
         const containerPort = parseInt(coreExports.getInput('container_port') || '8080', 10);
         const portName = coreExports.getInput('port_name');
         const imagePullSecretName = coreExports.getInput('image_pull_secret_name') || 'regcred';
+        const volumesJson = coreExports.getInput('volumes');
+        const volumeMountsJson = coreExports.getInput('volume_mounts');
         // Validate and clean image name
         const cleanImage = image.trim();
         if (!cleanImage) {
@@ -125538,7 +125540,11 @@ async function run() {
         }
         // Parse JSON inputs
         const envVars = parseJsonInput(envVarsJson);
+        const volumes = parseJsonInput(volumesJson);
+        const volumeMounts = parseJsonInput(volumeMountsJson);
         coreExports.debug(`Parsed environment variables: ${JSON.stringify(envVars, null, 2)}`);
+        coreExports.debug(`Parsed volumes: ${JSON.stringify(volumes, null, 2)}`);
+        coreExports.debug(`Parsed volume mounts: ${JSON.stringify(volumeMounts, null, 2)}`);
         // Validate environment variables format
         if (envVars.length > 0) {
             for (const envVar of envVars) {
@@ -125596,14 +125602,16 @@ async function run() {
                                     containerPort,
                                     name: portName || undefined
                                 }
-                            ]
+                            ],
+                            volumeMounts: volumeMounts.length > 0 ? volumeMounts : undefined
                         }
                     ],
                     imagePullSecrets: [
                         {
                             name: imagePullSecretName
                         }
-                    ]
+                    ],
+                    volumes: volumes.length > 0 ? volumes : undefined
                 }
             }
         };

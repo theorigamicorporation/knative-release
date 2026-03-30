@@ -69,6 +69,18 @@ inputs:
     required: false
     default: 'regcred'
 
+  volumes:
+    description:
+      'Volumes in JSON format:
+      [{"name":"my-vol","persistentVolumeClaim":{"claimName":"my-pvc","readOnly":false}}]'
+    required: false
+
+  volume_mounts:
+    description:
+      'Volume mounts for the container in JSON format:
+      [{"name":"my-vol","mountPath":"/data","readOnly":false}]'
+    required: false
+
 # Define your outputs here.
 outputs:
   service_url:
