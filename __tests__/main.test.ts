@@ -120,4 +120,152 @@ describe('main.ts', () => {
     // Should fail when required inputs are missing
     expect(core.setFailed).toHaveBeenCalled()
   })
+
+  describe('Deploy flow', () => {
+    beforeEach(() => {
+      process.env.RSO_DEV_ACCESS_TOKEN = 'test-token'
+      process.env.RSO_CLOUD_TENANT = 'test-tenant'
+
+      // jest.resetAllMocks() wipes the fixture's setContext implementation,
+      // so restore it for tests that reach Apollo client construction.
+      apolloClient.setContext.mockImplementation(() => ({
+        concat: jest.fn((link: unknown) => link)
+      }))
+
+      // Introspection test query has no variables; the service lookup does.
+      // Returning no existing service drives the create path.
+      apolloClient.mockQuery.mockImplementation(async (options) => {
+        const opts = options as { variables?: Record<string, unknown> }
+        if (opts?.variables) {
+          return { data: { knativeServiceByCluster: null } }
+        }
+        return { data: { __schema: { queryType: { name: 'Query' } } } }
+      })
+      apolloClient.mockMutate.mockResolvedValue({
+        data: {
+          createKnativeService: {
+            status: {
+              url: 'https://test-service.example.com',
+              latestReadyRevisionName: 'test-service-00001'
+            }
+          }
+        }
+      })
+    })
+
+    afterEach(() => {
+      delete process.env.RSO_DEV_ACCESS_TOKEN
+      delete process.env.RSO_CLOUD_TENANT
+      delete process.env.RSO_CLUSTER_ID
+    })
+
+    const getServiceQueryVariables = (): Record<string, unknown> => {
+      const call = apolloClient.mockQuery.mock.calls.find(
+        (c) => (c[0] as { variables?: unknown })?.variables
+      )
+      return (call?.[0] as { variables: Record<string, unknown> }).variables
+    }
+
+    it('Uses the default cluster ID when RSO_CLUSTER_ID is not set', async () => {
+      await run()
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(getServiceQueryVariables()).toMatchObject({
+        clusterId: 'toc-cluster-prod-o4'
+      })
+      expect(apolloClient.mockMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            clusterId: 'toc-cluster-prod-o4'
+          })
+        })
+      )
+      expect(core.setOutput).toHaveBeenCalledWith(
+        'service_url',
+        'https://test-service.example.com'
+      )
+    })
+
+    it('Uses RSO_CLUSTER_ID from the environment when set', async () => {
+      process.env.RSO_CLUSTER_ID = 'my-custom-cluster'
+
+      await run()
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      expect(getServiceQueryVariables()).toMatchObject({
+        clusterId: 'my-custom-cluster'
+      })
+      expect(apolloClient.mockMutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            clusterId: 'my-custom-cluster'
+          })
+        })
+      )
+    })
+
+    it('Wires annotations and labels into the service input', async () => {
+      core.getInput.mockImplementation((name: string) => {
+        const inputs: Record<string, string> = {
+          service_name: 'test-service',
+          image: 'test-image:latest',
+          annotations:
+            '[{"key":"autoscaling.knative.dev/minScale","value":"1"}]',
+          labels: '[{"key":"app","value":"my-app"}]'
+        }
+        return inputs[name] || ''
+      })
+
+      await run()
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      const mutateOptions = apolloClient.mockMutate.mock.calls[0][0] as {
+        variables: {
+          input: {
+            metadata?: unknown
+            template: { metadata?: unknown }
+          }
+        }
+      }
+      expect(mutateOptions.variables.input.template.metadata).toEqual({
+        annotations: [{ key: 'autoscaling.knative.dev/minScale', value: '1' }]
+      })
+      expect(mutateOptions.variables.input.metadata).toEqual({
+        labels: [{ key: 'app', value: 'my-app' }]
+      })
+    })
+
+    it('Omits annotations and labels from the input when not provided', async () => {
+      await run()
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      const mutateOptions = apolloClient.mockMutate.mock.calls[0][0] as {
+        variables: {
+          input: {
+            metadata?: unknown
+            template: { metadata?: unknown }
+          }
+        }
+      }
+      expect(mutateOptions.variables.input.metadata).toBeUndefined()
+      expect(mutateOptions.variables.input.template.metadata).toBeUndefined()
+    })
+
+    it('Fails when an annotation entry is missing a key', async () => {
+      core.getInput.mockImplementation((name: string) => {
+        const inputs: Record<string, string> = {
+          service_name: 'test-service',
+          image: 'test-image:latest',
+          annotations: '[{"value":"1"}]'
+        }
+        return inputs[name] || ''
+      })
+
+      await run()
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        'Each annotations entry must have a "key" field'
+      )
+    })
+  })
 })

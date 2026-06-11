@@ -149,6 +149,8 @@ export async function run(): Promise<void> {
       core.getInput('image_pull_secret_name') || 'regcred'
     const volumesJson = core.getInput('volumes')
     const volumeMountsJson = core.getInput('volume_mounts')
+    const annotationsJson = core.getInput('annotations')
+    const labelsJson = core.getInput('labels')
 
     // Validate and clean image name
     const cleanImage = image.trim()
@@ -221,7 +223,7 @@ export async function run(): Promise<void> {
       process.env.RSO_API_URL || 'https://gateway.cloud.rso.dev/graphql'
     const apiToken = process.env.RSO_DEV_ACCESS_TOKEN
     const cloudTenant = process.env.RSO_CLOUD_TENANT
-    const clusterId = 'toc-cluster-prod-o4'
+    const clusterId = process.env.RSO_CLUSTER_ID || 'toc-cluster-prod-o4'
 
     core.info(`Using API URL: ${apiUrl}`)
     core.info(`Cloud tenant: ${cloudTenant}`)
@@ -249,11 +251,30 @@ export async function run(): Promise<void> {
     const envVars = parseJsonInput(envVarsJson)
     const volumes = parseJsonInput(volumesJson)
     const volumeMounts = parseJsonInput(volumeMountsJson)
+    const annotations = parseJsonInput(annotationsJson)
+    const labels = parseJsonInput(labelsJson)
     core.debug(
       `Parsed environment variables: ${JSON.stringify(envVars, null, 2)}`
     )
     core.debug(`Parsed volumes: ${JSON.stringify(volumes, null, 2)}`)
     core.debug(`Parsed volume mounts: ${JSON.stringify(volumeMounts, null, 2)}`)
+    core.debug(`Parsed annotations: ${JSON.stringify(annotations, null, 2)}`)
+    core.debug(`Parsed labels: ${JSON.stringify(labels, null, 2)}`)
+
+    // Validate annotations/labels format (API expects key/value pairs)
+    for (const [inputName, entries] of [
+      ['annotations', annotations],
+      ['labels', labels]
+    ] as const) {
+      for (const entry of entries) {
+        if (!entry.key || typeof entry.key !== 'string') {
+          throw new Error(`Each ${inputName} entry must have a "key" field`)
+        }
+        if (!entry.value || typeof entry.value !== 'string') {
+          throw new Error(`Each ${inputName} entry must have a "value" field`)
+        }
+      }
+    }
 
     // Validate environment variables format
     if (envVars.length > 0) {
@@ -297,7 +318,12 @@ export async function run(): Promise<void> {
     // Prepare the new input based on provided parameters
     const newInput = {
       name: serviceName,
+      // Labels are applied to the service metadata
+      metadata: labels.length > 0 ? { labels } : undefined,
       template: {
+        // Annotations are applied to the revision template metadata so that
+        // e.g. autoscaling.knative.dev/* annotations take effect
+        metadata: annotations.length > 0 ? { annotations } : undefined,
         spec: {
           containers: [
             {

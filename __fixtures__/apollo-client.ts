@@ -37,6 +37,13 @@ export const gql = jest.fn(
   }
 )
 
+// Shared query/mutate mocks so tests can set implementations and inspect the
+// variables the action sends (the client instance is created inside run()).
+export const mockQuery =
+  jest.fn<(options?: unknown) => Promise<{ data: Record<string, unknown> }>>()
+export const mockMutate =
+  jest.fn<(options?: unknown) => Promise<{ data: Record<string, unknown> }>>()
+
 // Mock Apollo Client class
 export class ApolloClient {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -44,27 +51,9 @@ export class ApolloClient {
     // Store options for testing purposes if needed
   }
 
-  query = jest.fn().mockResolvedValue({
-    data: {
-      knativeServiceByNameAndNamespace: {
-        id: 'test-id',
-        name: 'test-service',
-        namespace: 'test-namespace'
-      }
-    }
-  })
+  query = mockQuery
 
-  mutate = jest.fn().mockResolvedValue({
-    data: {
-      triggerReleaseKnativeService: {
-        success: true,
-        release: {
-          id: 'release-id',
-          version: '1.0.0'
-        }
-      }
-    }
-  })
+  mutate = mockMutate
 }
 
 // Mock InMemoryCache
