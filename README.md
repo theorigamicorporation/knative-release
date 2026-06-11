@@ -66,7 +66,7 @@ This GitHub Action allows you to easily deploy applications to
 | `RSO_DEV_ACCESS_TOKEN` | Bearer token for the RSO API                                     | Yes      |
 | `RSO_CLOUD_TENANT`     | Cloud tenant (sent as `x-tenant` header, used as the namespace)  | Yes      |
 | `RSO_CLUSTER_ID`       | ID of the Kubernetes cluster (defaults to `toc-cluster-prod-o4`) | No       |
-| `RSO_API_URL`          | API URL (defaults to <https://gateway.cloud.rso.dev/graphql>)    | No       |
+| `RSO_API_URL`          | API URL (defaults to `https://gateway.cloud.rso.dev/graphql`)    | No       |
 
 ## Outputs
 
