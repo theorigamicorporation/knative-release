@@ -36,8 +36,8 @@ This GitHub Action allows you to easily deploy applications to
     resource_requests_cpu: '500m'
     resource_requests_memory: '256Mi'
   env:
-    RSO_API_TOKEN: ${{ secrets.RSO_API_TOKEN }}
-    RSO_CLUSTER_ID: ${{ secrets.RSO_CLUSTER_ID }}
+    RSO_DEV_ACCESS_TOKEN: ${{ secrets.RSO_DEV_ACCESS_TOKEN }}
+    RSO_CLOUD_TENANT: ${{ secrets.RSO_CLOUD_TENANT }}
 ```
 
 ## Inputs
@@ -47,7 +47,7 @@ This GitHub Action allows you to easily deploy applications to
 | `service_name`             | Name of the Knative service to deploy                    | Yes      | -         |
 | `image`                    | Container image to deploy                                | Yes      | -         |
 | `env_vars`                 | Environment variables in JSON format                     | No       | `[]`      |
-| `annotations`              | Service annotations in JSON format                       | No       | `[]`      |
+| `annotations`              | Revision template annotations in JSON format             | No       | `[]`      |
 | `labels`                   | Service labels in JSON format                            | No       | `[]`      |
 | `resource_limits_cpu`      | CPU resource limit (e.g., "500m")                        | No       | -         |
 | `resource_limits_memory`   | Memory resource limit (e.g., "512Mi")                    | No       | -         |
@@ -56,14 +56,17 @@ This GitHub Action allows you to easily deploy applications to
 | `container_port`           | Container port to expose                                 | No       | `8080`    |
 | `port_name`                | Name of the port (must be "h2c" or "http1" if specified) | No       | -         |
 | `image_pull_secret_name`   | Image pull secret name                                   | No       | `regcred` |
+| `volumes`                  | Volumes in JSON format                                   | No       | -         |
+| `volume_mounts`            | Container volume mounts in JSON format                   | No       | -         |
 
 ## Environment Variables
 
-| Variable         | Description                                         | Required |
-| ---------------- | --------------------------------------------------- | -------- |
-| `RSO_API_TOKEN`  | Authentication token for the RSO API                | Yes      |
-| `RSO_CLUSTER_ID` | ID of the Kubernetes cluster to deploy to           | Yes      |
-| `RSO_API_URL`    | API URL (defaults to <https://api.rso.dev/GraphQL>) | No       |
+| Variable               | Description                                                      | Required |
+| ---------------------- | ---------------------------------------------------------------- | -------- |
+| `RSO_DEV_ACCESS_TOKEN` | Bearer token for the RSO API                                     | Yes      |
+| `RSO_CLOUD_TENANT`     | Cloud tenant (sent as `x-tenant` header, used as the namespace)  | Yes      |
+| `RSO_CLUSTER_ID`       | ID of the Kubernetes cluster (defaults to `toc-cluster-prod-o4`) | No       |
+| `RSO_API_URL`          | API URL (defaults to `https://gateway.cloud.rso.dev/graphql`)    | No       |
 
 ## Outputs
 
@@ -91,9 +94,14 @@ This GitHub Action allows you to easily deploy applications to
         {"key":"environment", "value":"production"}
       ]
   env:
-    RSO_API_TOKEN: ${{ secrets.RSO_API_TOKEN }}
-    RSO_CLUSTER_ID: ${{ secrets.RSO_CLUSTER_ID }}
+    RSO_DEV_ACCESS_TOKEN: ${{ secrets.RSO_DEV_ACCESS_TOKEN }}
+    RSO_CLOUD_TENANT: ${{ secrets.RSO_CLOUD_TENANT }}
+    RSO_CLUSTER_ID: my-cluster-id # optional
 ```
+
+Annotations are applied to the revision template metadata (so
+`autoscaling.knative.dev/*` annotations take effect); labels are applied to the
+service metadata.
 
 ## How It Works
 

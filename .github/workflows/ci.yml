@@ -61,7 +61,7 @@ jobs:
           image: nginx:latest
         env:
           RSO_CLOUD_TENANT: test-tenant
-          RSO_API_TOKEN: test-token
+          RSO_DEV_ACCESS_TOKEN: test-token
         continue-on-error: true
 
       - name: Print Output

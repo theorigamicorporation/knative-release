@@ -27,7 +27,7 @@ inputs:
 
   annotations:
     description:
-      'Service annotations in JSON format:
+      'Revision template annotations in JSON format (e.g. autoscaling):
       [{"key":"annotation.key","value":"annotation-value"}]'
     required: false
 
