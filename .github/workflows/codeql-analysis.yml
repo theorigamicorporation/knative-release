@@ -32,6 +32,16 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
+      # CodeQL's TypeScript extractor shells out to `node`, and the self-hosted
+      # runner image deliberately ships none -- the runner's own copy lives in
+      # externals/ and is not on PATH. Without this the analysis fails with
+      # "Could not start Node.js. It is required for TypeScript extraction."
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
       - name: Initialize CodeQL
         id: initialize
         uses: github/codeql-action/init@v3
