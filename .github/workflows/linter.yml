@@ -22,6 +22,7 @@ concurrency:
 jobs:
   lint:
     name: Lint Codebase
+    timeout-minutes: 20
     runs-on: o4-k8s-runner-set-o4
 
     steps:

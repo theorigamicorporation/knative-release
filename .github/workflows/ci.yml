@@ -20,6 +20,7 @@ concurrency:
 jobs:
   test-typescript:
     name: TypeScript Tests
+    timeout-minutes: 15
     runs-on: o4-k8s-runner-set-o4
 
     steps:
@@ -52,6 +53,7 @@ jobs:
 
   test-action:
     name: GitHub Actions Test
+    timeout-minutes: 10
     runs-on: o4-k8s-runner-set-o4
 
     steps:
