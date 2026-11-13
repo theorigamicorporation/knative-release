@@ -19,9 +19,16 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group:
+    ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id
+    }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   licensed:
     name: Check Licenses
+    timeout-minutes: 30
     runs-on: o4-k8s-runner-set-o4
 
     steps:
