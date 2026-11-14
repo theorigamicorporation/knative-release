@@ -265,5 +265,62 @@ describe('main.ts', () => {
         'Each annotations entry must have a "key" field'
       )
     })
+    const withEnvVars = (envVars: string) =>
+      core.getInput.mockImplementation((name: string) => {
+        const inputs: Record<string, string> = {
+          service_name: 'test-service',
+          image: 'test-image:latest',
+          env_vars: envVars
+        }
+        return inputs[name] || ''
+      })
+
+    it('Passes secretKeyRef env vars through to the service input', async () => {
+      withEnvVars(
+        '[{"name":"PLAIN","value":"x"},{"name":"API_KEY","valueFrom":{"secretKeyRef":{"name":"app-env","key":"API_KEY"}}}]'
+      )
+
+      await run()
+
+      expect(core.setFailed).not.toHaveBeenCalled()
+      const mutateOptions = apolloClient.mockMutate.mock.calls[0][0] as {
+        variables: {
+          input: { template: { spec: { containers: { env: unknown }[] } } }
+        }
+      }
+      expect(
+        mutateOptions.variables.input.template.spec.containers[0].env
+      ).toEqual([
+        { name: 'PLAIN', value: 'x' },
+        {
+          name: 'API_KEY',
+          valueFrom: { secretKeyRef: { name: 'app-env', key: 'API_KEY' } }
+        }
+      ])
+    })
+
+    it('Fails when an env var has both value and valueFrom', async () => {
+      withEnvVars(
+        '[{"name":"API_KEY","value":"x","valueFrom":{"secretKeyRef":{"name":"app-env","key":"API_KEY"}}}]'
+      )
+
+      await run()
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        'Environment variable API_KEY must have either "value" or "valueFrom", not both'
+      )
+    })
+
+    it('Fails when a secretKeyRef has no key', async () => {
+      withEnvVars(
+        '[{"name":"API_KEY","valueFrom":{"secretKeyRef":{"name":"app-env"}}}]'
+      )
+
+      await run()
+
+      expect(core.setFailed).toHaveBeenCalledWith(
+        'Environment variable API_KEY: "valueFrom" must be {"secretKeyRef":{"name":"<secret>","key":"<key>"}}'
+      )
+    })
   })
 })
