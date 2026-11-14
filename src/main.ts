@@ -282,7 +282,28 @@ export async function run(): Promise<void> {
         if (!envVar.name || typeof envVar.name !== 'string') {
           throw new Error('Environment variables must have a "name" field')
         }
-        if (!envVar.value || typeof envVar.value !== 'string') {
+        // Either a literal value or a reference to a key of a Secret in the
+        // service's namespace, which keeps the value out of the ksvc spec.
+        const ref = (envVar.valueFrom as Record<string, unknown> | undefined)
+          ?.secretKeyRef as Record<string, unknown> | undefined
+        if (envVar.valueFrom !== undefined) {
+          if (envVar.value !== undefined) {
+            throw new Error(
+              `Environment variable ${envVar.name} must have either "value" or "valueFrom", not both`
+            )
+          }
+          if (
+            !ref ||
+            typeof ref.name !== 'string' ||
+            !ref.name ||
+            typeof ref.key !== 'string' ||
+            !ref.key
+          ) {
+            throw new Error(
+              `Environment variable ${envVar.name}: "valueFrom" must be {"secretKeyRef":{"name":"<secret>","key":"<key>"}}`
+            )
+          }
+        } else if (!envVar.value || typeof envVar.value !== 'string') {
           throw new Error('Environment variables must have a "value" field')
         }
       }

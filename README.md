@@ -29,7 +29,8 @@ This GitHub Action allows you to easily deploy applications to
     env_vars: |
       [
         {"name":"API_URL", "value":"https://api.example.com"},
-        {"name":"NODE_ENV", "value":"production"}
+        {"name":"NODE_ENV", "value":"production"},
+        {"name":"API_KEY", "valueFrom":{"secretKeyRef":{"name":"my-app-env","key":"API_KEY"}}}
       ]
     resource_limits_cpu: '1000m'
     resource_limits_memory: '512Mi'
