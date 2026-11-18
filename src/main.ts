@@ -315,14 +315,11 @@ export async function run(): Promise<void> {
     // Test the connection
     core.info('Testing GraphQL connection...')
     try {
-      // Simple introspection query to test connection
+      // Smallest valid query. Not introspection: the RSO gateway disables
+      // introspection in production and rejects __schema with HTTP 400.
       const testQuery = gql`
-        query {
-          __schema {
-            queryType {
-              name
-            }
-          }
+        query ConnectionTest {
+          __typename
         }
       `
       await client.query({ query: testQuery })
