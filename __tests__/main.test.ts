@@ -130,14 +130,14 @@ describe('main.ts', () => {
         concat: jest.fn((link: unknown) => link)
       }))
 
-      // Introspection test query has no variables; the service lookup does.
+      // The connection test query has no variables; the service lookup does.
       // Returning no existing service drives the create path.
       apolloClient.mockQuery.mockImplementation(async (options) => {
         const opts = options as { variables?: Record<string, unknown> }
         if (opts?.variables) {
           return { data: { knativeServiceByCluster: null } }
         }
-        return { data: { __schema: { queryType: { name: 'Query' } } } }
+        return { data: { __typename: 'Query' } }
       })
       apolloClient.mockMutate.mockResolvedValue({
         data: {
