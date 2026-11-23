@@ -2,11 +2,8 @@ import * as core from '@actions/core'
 import { ApolloClient, InMemoryCache, HttpLink, gql } from '@apollo/client'
 import { setContext } from '@apollo/client/link/context'
 import fetch from 'cross-fetch'
-import {
-  CREATE_KNATIVE_SERVICE,
-  UPDATE_KNATIVE_SERVICE
-} from './graphql/mutations.js'
-import { GET_KNATIVE_SERVICE } from './graphql/queries.js'
+import { CREATE_APP, UPDATE_APP } from './graphql/mutations.js'
+import { GET_APP } from './graphql/queries.js'
 
 /**
  * Create Apollo client for GraphQL requests
@@ -378,13 +375,13 @@ export async function run(): Promise<void> {
 
     // First try to get the existing service
     try {
-      core.info(`Fetching existing Knative service: ${serviceName}`)
+      core.info(`Fetching existing app: ${serviceName}`)
       core.debug(
         `Query variables: clusterId=${clusterId}, name=${serviceName}, namespace=${cloudTenant}`
       )
 
       const { data } = await client.query({
-        query: GET_KNATIVE_SERVICE,
+        query: GET_APP,
         variables: {
           clusterId,
           name: serviceName,
@@ -392,10 +389,10 @@ export async function run(): Promise<void> {
         }
       })
 
-      const existingService = data.knativeServiceByCluster
+      const existingService = data.app
 
       if (existingService) {
-        core.info(`Found existing Knative service, merging configurations`)
+        core.info(`Found existing app, merging configurations`)
 
         // Convert the existing service to input format
         const existingInput = {
@@ -410,7 +407,7 @@ export async function run(): Promise<void> {
         const mergedInput = deepMerge(cleanExistingInput, newInput)
 
         core.debug(
-          `Updating Knative service with merged input: ${JSON.stringify(mergedInput, null, 2)}`
+          `Updating app with merged input: ${JSON.stringify(mergedInput, null, 2)}`
         )
 
         // Update the service with merged configuration
@@ -419,17 +416,17 @@ export async function run(): Promise<void> {
         )
 
         const updateResult = await client.mutate({
-          mutation: UPDATE_KNATIVE_SERVICE,
+          mutation: UPDATE_APP,
           variables: {
             clusterId,
             input: mergedInput
           }
         })
 
-        const result = updateResult.data.updateKnativeService
+        const result = updateResult.data.updateApp
         core.setOutput('service_url', result.status.url)
         core.setOutput('revision_name', result.status.latestReadyRevisionName)
-        core.info(`Successfully updated Knative service: ${serviceName}`)
+        core.info(`Successfully updated app: ${serviceName}`)
         core.info(`Service URL: ${result.status.url}`)
       } else {
         throw new Error('Service not found')
@@ -447,9 +444,7 @@ export async function run(): Promise<void> {
           error.message === 'Service not found') &&
         !error.message.includes('already exists')
       ) {
-        core.info(
-          `Service not found, creating new Knative service: ${serviceName}`
-        )
+        core.info(`Service not found, creating new app: ${serviceName}`)
 
         try {
           core.debug(
@@ -457,17 +452,17 @@ export async function run(): Promise<void> {
           )
 
           const { data } = await client.mutate({
-            mutation: CREATE_KNATIVE_SERVICE,
+            mutation: CREATE_APP,
             variables: {
               clusterId,
               input: newInput
             }
           })
 
-          const result = data.createKnativeService
+          const result = data.createApp
           core.setOutput('service_url', result.status.url)
           core.setOutput('revision_name', result.status.latestReadyRevisionName)
-          core.info(`Successfully created Knative service: ${serviceName}`)
+          core.info(`Successfully created app: ${serviceName}`)
           core.info(`Service URL: ${result.status.url}`)
         } catch (createError) {
           core.error(
@@ -488,20 +483,20 @@ export async function run(): Promise<void> {
 
             // Since we couldn't get the existing service data, we'll just use the new input
             const { data } = await client.mutate({
-              mutation: UPDATE_KNATIVE_SERVICE,
+              mutation: UPDATE_APP,
               variables: {
                 clusterId,
                 input: newInput
               }
             })
 
-            const result = data.updateKnativeService
+            const result = data.updateApp
             core.setOutput('service_url', result.status.url)
             core.setOutput(
               'revision_name',
               result.status.latestReadyRevisionName
             )
-            core.info(`Successfully updated Knative service: ${serviceName}`)
+            core.info(`Successfully updated app: ${serviceName}`)
             core.info(`Service URL: ${result.status.url}`)
           } else {
             // Some other error occurred during creation
@@ -523,17 +518,17 @@ export async function run(): Promise<void> {
 
           // Since we couldn't get the existing service data, we'll just use the new input
           const { data } = await client.mutate({
-            mutation: UPDATE_KNATIVE_SERVICE,
+            mutation: UPDATE_APP,
             variables: {
               clusterId,
               input: newInput
             }
           })
 
-          const result = data.updateKnativeService
+          const result = data.updateApp
           core.setOutput('service_url', result.status.url)
           core.setOutput('revision_name', result.status.latestReadyRevisionName)
-          core.info(`Successfully updated Knative service: ${serviceName}`)
+          core.info(`Successfully updated app: ${serviceName}`)
           core.info(`Service URL: ${result.status.url}`)
         } else {
           // Some other error occurred

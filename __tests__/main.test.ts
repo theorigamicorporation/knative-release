@@ -135,13 +135,13 @@ describe('main.ts', () => {
       apolloClient.mockQuery.mockImplementation(async (options) => {
         const opts = options as { variables?: Record<string, unknown> }
         if (opts?.variables) {
-          return { data: { knativeServiceByCluster: null } }
+          return { data: { app: null } }
         }
         return { data: { __typename: 'Query' } }
       })
       apolloClient.mockMutate.mockResolvedValue({
         data: {
-          createKnativeService: {
+          createApp: {
             status: {
               url: 'https://test-service.example.com',
               latestReadyRevisionName: 'test-service-00001'

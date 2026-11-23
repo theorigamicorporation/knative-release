@@ -1,17 +1,9 @@
 import { gql } from '@apollo/client'
 
-// GraphQL query for getting a Knative service
-export const GET_KNATIVE_SERVICE = gql`
-  query KnativeServiceByCluster(
-    $clusterId: ID!
-    $name: String!
-    $namespace: String
-  ) {
-    knativeServiceByCluster(
-      clusterId: $clusterId
-      name: $name
-      namespace: $namespace
-    ) {
+// GraphQL query for getting an app
+export const GET_APP = gql`
+  query App($clusterId: ID!, $name: String!, $namespace: String) {
+    app(clusterId: $clusterId, name: $name, namespace: $namespace) {
       name
       namespace
       template {

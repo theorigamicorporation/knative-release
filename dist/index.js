@@ -125049,10 +125049,10 @@ function requireNodePonyfill () {
 var nodePonyfillExports = requireNodePonyfill();
 var fetch$1 = /*@__PURE__*/getDefaultExportFromCjs(nodePonyfillExports);
 
-// GraphQL mutation for creating a Knative service
-const CREATE_KNATIVE_SERVICE = gql `
-  mutation CreateKnativeService($clusterId: ID!, $input: KnativeServiceInput!) {
-    createKnativeService(clusterId: $clusterId, input: $input) {
+// GraphQL mutation for creating an app
+const CREATE_APP = gql `
+  mutation CreateApp($clusterId: ID!, $input: AppInput!) {
+    createApp(clusterId: $clusterId, input: $input) {
       name
       namespace
       template {
@@ -125151,10 +125151,10 @@ const CREATE_KNATIVE_SERVICE = gql `
     }
   }
 `;
-// GraphQL mutation for updating a Knative service
-const UPDATE_KNATIVE_SERVICE = gql `
-  mutation UpdateKnativeService($clusterId: ID!, $input: KnativeServiceInput!) {
-    updateKnativeService(clusterId: $clusterId, input: $input) {
+// GraphQL mutation for updating an app
+const UPDATE_APP = gql `
+  mutation UpdateApp($clusterId: ID!, $input: AppInput!) {
+    updateApp(clusterId: $clusterId, input: $input) {
       name
       namespace
       template {
@@ -125254,18 +125254,10 @@ const UPDATE_KNATIVE_SERVICE = gql `
   }
 `;
 
-// GraphQL query for getting a Knative service
-const GET_KNATIVE_SERVICE = gql `
-  query KnativeServiceByCluster(
-    $clusterId: ID!
-    $name: String!
-    $namespace: String
-  ) {
-    knativeServiceByCluster(
-      clusterId: $clusterId
-      name: $name
-      namespace: $namespace
-    ) {
+// GraphQL query for getting an app
+const GET_APP = gql `
+  query App($clusterId: ID!, $name: String!, $namespace: String) {
+    app(clusterId: $clusterId, name: $name, namespace: $namespace) {
       name
       namespace
       template {
@@ -125655,19 +125647,19 @@ async function run() {
         };
         // First try to get the existing service
         try {
-            coreExports.info(`Fetching existing Knative service: ${serviceName}`);
+            coreExports.info(`Fetching existing app: ${serviceName}`);
             coreExports.debug(`Query variables: clusterId=${clusterId}, name=${serviceName}, namespace=${cloudTenant}`);
             const { data } = await client.query({
-                query: GET_KNATIVE_SERVICE,
+                query: GET_APP,
                 variables: {
                     clusterId,
                     name: serviceName,
                     namespace: cloudTenant
                 }
             });
-            const existingService = data.knativeServiceByCluster;
+            const existingService = data.app;
             if (existingService) {
-                coreExports.info(`Found existing Knative service, merging configurations`);
+                coreExports.info(`Found existing app, merging configurations`);
                 // Convert the existing service to input format
                 const existingInput = {
                     name: existingService.name,
@@ -125677,20 +125669,20 @@ async function run() {
                 const cleanExistingInput = removeTypenames(existingInput);
                 // Merge the existing service with the new input, giving preference to new values
                 const mergedInput = deepMerge(cleanExistingInput, newInput);
-                coreExports.debug(`Updating Knative service with merged input: ${JSON.stringify(mergedInput, null, 2)}`);
+                coreExports.debug(`Updating app with merged input: ${JSON.stringify(mergedInput, null, 2)}`);
                 // Update the service with merged configuration
                 coreExports.debug(`Updating service with variables: clusterId=${clusterId}, input=${JSON.stringify(mergedInput, null, 2)}`);
                 const updateResult = await client.mutate({
-                    mutation: UPDATE_KNATIVE_SERVICE,
+                    mutation: UPDATE_APP,
                     variables: {
                         clusterId,
                         input: mergedInput
                     }
                 });
-                const result = updateResult.data.updateKnativeService;
+                const result = updateResult.data.updateApp;
                 coreExports.setOutput('service_url', result.status.url);
                 coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
-                coreExports.info(`Successfully updated Knative service: ${serviceName}`);
+                coreExports.info(`Successfully updated app: ${serviceName}`);
                 coreExports.info(`Service URL: ${result.status.url}`);
             }
             else {
@@ -125705,20 +125697,20 @@ async function run() {
                 (error.message.includes('not found') ||
                     error.message === 'Service not found') &&
                 !error.message.includes('already exists')) {
-                coreExports.info(`Service not found, creating new Knative service: ${serviceName}`);
+                coreExports.info(`Service not found, creating new app: ${serviceName}`);
                 try {
                     coreExports.debug(`Creating service with variables: clusterId=${clusterId}, input=${JSON.stringify(newInput, null, 2)}`);
                     const { data } = await client.mutate({
-                        mutation: CREATE_KNATIVE_SERVICE,
+                        mutation: CREATE_APP,
                         variables: {
                             clusterId,
                             input: newInput
                         }
                     });
-                    const result = data.createKnativeService;
+                    const result = data.createApp;
                     coreExports.setOutput('service_url', result.status.url);
                     coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
-                    coreExports.info(`Successfully created Knative service: ${serviceName}`);
+                    coreExports.info(`Successfully created app: ${serviceName}`);
                     coreExports.info(`Service URL: ${result.status.url}`);
                 }
                 catch (createError) {
@@ -125730,16 +125722,16 @@ async function run() {
                         coreExports.info(`Service appears to already exist despite query failure. Trying to update instead.`);
                         // Since we couldn't get the existing service data, we'll just use the new input
                         const { data } = await client.mutate({
-                            mutation: UPDATE_KNATIVE_SERVICE,
+                            mutation: UPDATE_APP,
                             variables: {
                                 clusterId,
                                 input: newInput
                             }
                         });
-                        const result = data.updateKnativeService;
+                        const result = data.updateApp;
                         coreExports.setOutput('service_url', result.status.url);
                         coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
-                        coreExports.info(`Successfully updated Knative service: ${serviceName}`);
+                        coreExports.info(`Successfully updated app: ${serviceName}`);
                         coreExports.info(`Service URL: ${result.status.url}`);
                     }
                     else {
@@ -125756,16 +125748,16 @@ async function run() {
                     coreExports.info(`Service appears to already exist despite query failure. Trying to update instead.`);
                     // Since we couldn't get the existing service data, we'll just use the new input
                     const { data } = await client.mutate({
-                        mutation: UPDATE_KNATIVE_SERVICE,
+                        mutation: UPDATE_APP,
                         variables: {
                             clusterId,
                             input: newInput
                         }
                     });
-                    const result = data.updateKnativeService;
+                    const result = data.updateApp;
                     coreExports.setOutput('service_url', result.status.url);
                     coreExports.setOutput('revision_name', result.status.latestReadyRevisionName);
-                    coreExports.info(`Successfully updated Knative service: ${serviceName}`);
+                    coreExports.info(`Successfully updated app: ${serviceName}`);
                     coreExports.info(`Service URL: ${result.status.url}`);
                 }
                 else {

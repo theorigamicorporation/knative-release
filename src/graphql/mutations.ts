@@ -1,9 +1,9 @@
 import { gql } from '@apollo/client'
 
-// GraphQL mutation for creating a Knative service
-export const CREATE_KNATIVE_SERVICE = gql`
-  mutation CreateKnativeService($clusterId: ID!, $input: KnativeServiceInput!) {
-    createKnativeService(clusterId: $clusterId, input: $input) {
+// GraphQL mutation for creating an app
+export const CREATE_APP = gql`
+  mutation CreateApp($clusterId: ID!, $input: AppInput!) {
+    createApp(clusterId: $clusterId, input: $input) {
       name
       namespace
       template {
@@ -103,10 +103,10 @@ export const CREATE_KNATIVE_SERVICE = gql`
   }
 `
 
-// GraphQL mutation for updating a Knative service
-export const UPDATE_KNATIVE_SERVICE = gql`
-  mutation UpdateKnativeService($clusterId: ID!, $input: KnativeServiceInput!) {
-    updateKnativeService(clusterId: $clusterId, input: $input) {
+// GraphQL mutation for updating an app
+export const UPDATE_APP = gql`
+  mutation UpdateApp($clusterId: ID!, $input: AppInput!) {
+    updateApp(clusterId: $clusterId, input: $input) {
       name
       namespace
       template {
