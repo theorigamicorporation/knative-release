@@ -5,23 +5,23 @@
 [![Check dist/](https://github.com/actions/typescript-action/actions/workflows/check-dist.yml/badge.svg)](https://github.com/actions/typescript-action/actions/workflows/check-dist.yml)
 [![CodeQL](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/actions/typescript-action/actions/workflows/codeql-analysis.yml)
 
-This GitHub Action allows you to easily deploy applications to
-[Knative](https://knative.dev) without dealing with Kubernetes complexity.
+This GitHub Action deploys a container image as an app on RSO Cloud without
+dealing with Kubernetes complexity.
 
 **Author**: The Origami Corporation
 
 ## Features
 
-- Simple interface for deploying Knative services
+- Simple interface for deploying apps
 - Handles both creation and updates automatically
-- Abstracts away all Kubernetes/Knative YAML complexity
+- Abstracts away all Kubernetes YAML complexity
 - Only requires a container image and basic configuration
 - Outputs the service URL and revision name
 
 ## Usage
 
 ```yaml
-- name: Deploy to Knative
+- name: Deploy app
   uses: rso/knative-release@v1
   with:
     service_name: my-service
@@ -45,7 +45,7 @@ This GitHub Action allows you to easily deploy applications to
 
 | Input                      | Description                                              | Required | Default   |
 | -------------------------- | -------------------------------------------------------- | -------- | --------- |
-| `service_name`             | Name of the Knative service to deploy                    | Yes      | -         |
+| `service_name`             | Name of the app to deploy                                | Yes      | -         |
 | `image`                    | Container image to deploy                                | Yes      | -         |
 | `env_vars`                 | Environment variables in JSON format                     | No       | `[]`      |
 | `annotations`              | Revision template annotations in JSON format             | No       | `[]`      |
@@ -71,15 +71,15 @@ This GitHub Action allows you to easily deploy applications to
 
 ## Outputs
 
-| Output          | Description                             |
-| --------------- | --------------------------------------- |
-| `service_url`   | The URL of the deployed Knative service |
-| `revision_name` | The name of the created revision        |
+| Output          | Description                      |
+| --------------- | -------------------------------- |
+| `service_url`   | The URL of the deployed app      |
+| `revision_name` | The name of the created revision |
 
 ## Example with Annotations and Labels
 
 ```yaml
-- name: Deploy to Knative with Annotations and Labels
+- name: Deploy with Annotations and Labels
   uses: rso/knative-release@v1
   with:
     service_name: my-service
@@ -108,19 +108,18 @@ service metadata.
 
 This action:
 
-1. Takes your inputs and constructs a Knative service definition
+1. Takes your inputs and constructs an app definition
 1. First attempts to update an existing service with the same name
 1. If the service doesn't exist, creates a new one
 1. Returns the service URL and revision name as outputs
 
 ## Behind the Scenes
 
-This action uses the RSO GraphQL API to deploy your service to Knative. It
-handles all the complexity of Kubernetes manifests, letting you focus on your
-application.
+This action uses the RSO GraphQL API to deploy your app. It handles all the
+complexity of Kubernetes manifests, letting you focus on your application.
 
-All Kubernetes/Knative complexity is completely abstracted away. You only need
-to provide your container image and basic configuration.
+All Kubernetes complexity is completely abstracted away. You only need to
+provide your container image and basic configuration.
 
 ## License
 

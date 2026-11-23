@@ -1,6 +1,6 @@
 name: Deploy Knative Service
 description:
-  Create or update a Knative Service with smart config merging, without
+  Create or update an app on RSO Cloud with smart config merging, without
   Kubernetes complexity.
 author: The Origami Corporation
 
@@ -11,7 +11,7 @@ branding:
 # Define your inputs here.
 inputs:
   service_name:
-    description: 'Name of the Knative service to create or update'
+    description: 'Name of the app to create or update'
     required: true
 
   image:
@@ -82,7 +82,7 @@ inputs:
 # Define your outputs here.
 outputs:
   service_url:
-    description: 'The URL of the deployed Knative service'
+    description: 'The URL of the deployed app'
 
   revision_name:
     description: 'The name of the created revision'
