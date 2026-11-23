@@ -22,7 +22,7 @@ dealing with Kubernetes complexity.
 
 ```yaml
 - name: Deploy app
-  uses: rso/knative-release@v1
+  uses: theorigamicorporation/knative-release@v1
   with:
     service_name: my-service
     image: reg.rso.dev/my-project/image:tag
@@ -62,12 +62,12 @@ dealing with Kubernetes complexity.
 
 ## Environment Variables
 
-| Variable               | Description                                                      | Required |
-| ---------------------- | ---------------------------------------------------------------- | -------- |
-| `RSO_DEV_ACCESS_TOKEN` | Bearer token for the RSO API                                     | Yes      |
-| `RSO_CLOUD_TENANT`     | Cloud tenant (sent as `x-tenant` header, used as the namespace)  | Yes      |
-| `RSO_CLUSTER_ID`       | ID of the Kubernetes cluster (defaults to `toc-cluster-prod-o4`) | No       |
-| `RSO_API_URL`          | API URL (defaults to `https://gateway.cloud.rso.dev/graphql`)    | No       |
+| Variable               | Description                                                     | Required |
+| ---------------------- | --------------------------------------------------------------- | -------- |
+| `RSO_DEV_ACCESS_TOKEN` | Bearer token for the RSO API                                    | Yes      |
+| `RSO_CLOUD_TENANT`     | Cloud tenant (sent as `x-tenant` header, used as the namespace) | Yes      |
+| `RSO_CLUSTER_ID`       | Cluster to deploy to; rarely needed, the API picks your cluster | No       |
+| `RSO_API_URL`          | API URL (defaults to `https://gateway.cloud.rso.dev/graphql`)   | No       |
 
 ## Outputs
 
@@ -80,7 +80,7 @@ dealing with Kubernetes complexity.
 
 ```yaml
 - name: Deploy with Annotations and Labels
-  uses: rso/knative-release@v1
+  uses: theorigamicorporation/knative-release@v1
   with:
     service_name: my-service
     image: reg.rso.dev/my-project/image:tag
@@ -97,7 +97,6 @@ dealing with Kubernetes complexity.
   env:
     RSO_DEV_ACCESS_TOKEN: ${{ secrets.RSO_DEV_ACCESS_TOKEN }}
     RSO_CLOUD_TENANT: ${{ secrets.RSO_CLOUD_TENANT }}
-    RSO_CLUSTER_ID: my-cluster-id # optional
 ```
 
 Annotations are applied to the revision template metadata (so
