@@ -2,7 +2,7 @@ import { gql } from '@apollo/client'
 
 // GraphQL mutation for creating an app
 export const CREATE_APP = gql`
-  mutation CreateApp($clusterId: ID!, $input: AppInput!) {
+  mutation CreateApp($clusterId: ID, $input: AppInput!) {
     createApp(clusterId: $clusterId, input: $input) {
       name
       namespace
@@ -105,7 +105,7 @@ export const CREATE_APP = gql`
 
 // GraphQL mutation for updating an app
 export const UPDATE_APP = gql`
-  mutation UpdateApp($clusterId: ID!, $input: AppInput!) {
+  mutation UpdateApp($clusterId: ID, $input: AppInput!) {
     updateApp(clusterId: $clusterId, input: $input) {
       name
       namespace

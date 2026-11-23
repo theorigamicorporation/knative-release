@@ -125051,7 +125051,7 @@ var fetch$1 = /*@__PURE__*/getDefaultExportFromCjs(nodePonyfillExports);
 
 // GraphQL mutation for creating an app
 const CREATE_APP = gql `
-  mutation CreateApp($clusterId: ID!, $input: AppInput!) {
+  mutation CreateApp($clusterId: ID, $input: AppInput!) {
     createApp(clusterId: $clusterId, input: $input) {
       name
       namespace
@@ -125153,7 +125153,7 @@ const CREATE_APP = gql `
 `;
 // GraphQL mutation for updating an app
 const UPDATE_APP = gql `
-  mutation UpdateApp($clusterId: ID!, $input: AppInput!) {
+  mutation UpdateApp($clusterId: ID, $input: AppInput!) {
     updateApp(clusterId: $clusterId, input: $input) {
       name
       namespace
@@ -125256,7 +125256,7 @@ const UPDATE_APP = gql `
 
 // GraphQL query for getting an app
 const GET_APP = gql `
-  query App($clusterId: ID!, $name: String!, $namespace: String) {
+  query App($clusterId: ID, $name: String!, $namespace: String) {
     app(clusterId: $clusterId, name: $name, namespace: $namespace) {
       name
       namespace
@@ -125514,10 +125514,13 @@ async function run() {
         const apiUrl = process.env.RSO_API_URL || 'https://gateway.cloud.rso.dev/graphql';
         const apiToken = process.env.RSO_DEV_ACCESS_TOKEN;
         const cloudTenant = process.env.RSO_CLOUD_TENANT;
-        const clusterId = process.env.RSO_CLUSTER_ID || 'toc-cluster-prod-o4';
+        // Optional override; when unset the API picks the tenant's cluster.
+        const clusterId = process.env.RSO_CLUSTER_ID || undefined;
         coreExports.info(`Using API URL: ${apiUrl}`);
         coreExports.info(`Cloud tenant: ${cloudTenant}`);
-        coreExports.info(`Cluster ID: ${clusterId}`);
+        if (clusterId) {
+            coreExports.info(`Cluster ID: ${clusterId}`);
+        }
         if (!cloudTenant) {
             throw new Error('RSO_CLOUD_TENANT environment variable is required');
         }
@@ -125648,7 +125651,7 @@ async function run() {
         // First try to get the existing service
         try {
             coreExports.info(`Fetching existing app: ${serviceName}`);
-            coreExports.debug(`Query variables: clusterId=${clusterId}, name=${serviceName}, namespace=${cloudTenant}`);
+            coreExports.debug(`Query variables: ${clusterId ? `clusterId=${clusterId}, ` : ''}name=${serviceName}, namespace=${cloudTenant}`);
             const { data } = await client.query({
                 query: GET_APP,
                 variables: {
@@ -125671,7 +125674,7 @@ async function run() {
                 const mergedInput = deepMerge(cleanExistingInput, newInput);
                 coreExports.debug(`Updating app with merged input: ${JSON.stringify(mergedInput, null, 2)}`);
                 // Update the service with merged configuration
-                coreExports.debug(`Updating service with variables: clusterId=${clusterId}, input=${JSON.stringify(mergedInput, null, 2)}`);
+                coreExports.debug(`Updating service with variables: ${clusterId ? `clusterId=${clusterId}, ` : ''}input=${JSON.stringify(mergedInput, null, 2)}`);
                 const updateResult = await client.mutate({
                     mutation: UPDATE_APP,
                     variables: {
@@ -125699,7 +125702,7 @@ async function run() {
                 !error.message.includes('already exists')) {
                 coreExports.info(`Service not found, creating new app: ${serviceName}`);
                 try {
-                    coreExports.debug(`Creating service with variables: clusterId=${clusterId}, input=${JSON.stringify(newInput, null, 2)}`);
+                    coreExports.debug(`Creating service with variables: ${clusterId ? `clusterId=${clusterId}, ` : ''}input=${JSON.stringify(newInput, null, 2)}`);
                     const { data } = await client.mutate({
                         mutation: CREATE_APP,
                         variables: {

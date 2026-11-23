@@ -220,11 +220,14 @@ export async function run(): Promise<void> {
       process.env.RSO_API_URL || 'https://gateway.cloud.rso.dev/graphql'
     const apiToken = process.env.RSO_DEV_ACCESS_TOKEN
     const cloudTenant = process.env.RSO_CLOUD_TENANT
-    const clusterId = process.env.RSO_CLUSTER_ID || 'toc-cluster-prod-o4'
+    // Optional override; when unset the API picks the tenant's cluster.
+    const clusterId = process.env.RSO_CLUSTER_ID || undefined
 
     core.info(`Using API URL: ${apiUrl}`)
     core.info(`Cloud tenant: ${cloudTenant}`)
-    core.info(`Cluster ID: ${clusterId}`)
+    if (clusterId) {
+      core.info(`Cluster ID: ${clusterId}`)
+    }
 
     if (!cloudTenant) {
       throw new Error('RSO_CLOUD_TENANT environment variable is required')
@@ -377,7 +380,7 @@ export async function run(): Promise<void> {
     try {
       core.info(`Fetching existing app: ${serviceName}`)
       core.debug(
-        `Query variables: clusterId=${clusterId}, name=${serviceName}, namespace=${cloudTenant}`
+        `Query variables: ${clusterId ? `clusterId=${clusterId}, ` : ''}name=${serviceName}, namespace=${cloudTenant}`
       )
 
       const { data } = await client.query({
@@ -412,7 +415,7 @@ export async function run(): Promise<void> {
 
         // Update the service with merged configuration
         core.debug(
-          `Updating service with variables: clusterId=${clusterId}, input=${JSON.stringify(mergedInput, null, 2)}`
+          `Updating service with variables: ${clusterId ? `clusterId=${clusterId}, ` : ''}input=${JSON.stringify(mergedInput, null, 2)}`
         )
 
         const updateResult = await client.mutate({
@@ -448,7 +451,7 @@ export async function run(): Promise<void> {
 
         try {
           core.debug(
-            `Creating service with variables: clusterId=${clusterId}, input=${JSON.stringify(newInput, null, 2)}`
+            `Creating service with variables: ${clusterId ? `clusterId=${clusterId}, ` : ''}input=${JSON.stringify(newInput, null, 2)}`
           )
 
           const { data } = await client.mutate({

@@ -164,19 +164,17 @@ describe('main.ts', () => {
       return (call?.[0] as { variables: Record<string, unknown> }).variables
     }
 
-    it('Uses the default cluster ID when RSO_CLUSTER_ID is not set', async () => {
+    it('Sends no cluster ID when RSO_CLUSTER_ID is not set', async () => {
       await run()
 
       expect(core.setFailed).not.toHaveBeenCalled()
-      expect(getServiceQueryVariables()).toMatchObject({
-        clusterId: 'toc-cluster-prod-o4'
-      })
-      expect(apolloClient.mockMutate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          variables: expect.objectContaining({
-            clusterId: 'toc-cluster-prod-o4'
-          })
-        })
+      expect(getServiceQueryVariables().clusterId).toBeUndefined()
+      const mutation = apolloClient.mockMutate.mock.calls[0][0] as {
+        variables: Record<string, unknown>
+      }
+      expect(mutation.variables.clusterId).toBeUndefined()
+      expect(core.info).not.toHaveBeenCalledWith(
+        expect.stringContaining('Cluster ID')
       )
       expect(core.setOutput).toHaveBeenCalledWith(
         'service_url',
