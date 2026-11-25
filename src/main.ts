@@ -5,6 +5,22 @@ import fetch from 'cross-fetch'
 import { CREATE_APP, UPDATE_APP } from './graphql/mutations.js'
 import { GET_APP } from './graphql/queries.js'
 
+interface AppResult {
+  name: string
+  template: Record<string, unknown>
+  status: { url: string; latestReadyRevisionName: string }
+}
+
+/**
+ * Return the data of a GraphQL result or fail when the server sent none
+ */
+function requireData<T>(data: T | null | undefined): T {
+  if (data === null || data === undefined) {
+    throw new Error('The GraphQL API returned no data')
+  }
+  return data
+}
+
 /**
  * Create Apollo client for GraphQL requests
  */
@@ -12,23 +28,21 @@ function createApolloClient(
   apiUrl: string,
   token: string,
   cloudTenant: string
-): ApolloClient<unknown> {
+): ApolloClient {
   const httpLink = new HttpLink({
     uri: apiUrl,
     fetch
   })
 
-  const authLink = setContext(
-    (_: unknown, { headers }: { headers?: Record<string, string> }) => {
-      return {
-        headers: {
-          ...headers,
-          authorization: token ? `Bearer ${token}` : '',
-          'x-tenant': cloudTenant
-        }
+  const authLink = setContext((_, { headers }) => {
+    return {
+      headers: {
+        ...headers,
+        authorization: token ? `Bearer ${token}` : '',
+        'x-tenant': cloudTenant
       }
     }
-  )
+  })
 
   return new ApolloClient({
     link: authLink.concat(httpLink),
@@ -383,7 +397,7 @@ export async function run(): Promise<void> {
         `Query variables: ${clusterId ? `clusterId=${clusterId}, ` : ''}name=${serviceName}, namespace=${cloudTenant}`
       )
 
-      const { data } = await client.query({
+      const { data } = await client.query<{ app: AppResult | null }>({
         query: GET_APP,
         variables: {
           clusterId,
@@ -392,7 +406,7 @@ export async function run(): Promise<void> {
         }
       })
 
-      const existingService = data.app
+      const existingService = data?.app
 
       if (existingService) {
         core.info(`Found existing app, merging configurations`)
@@ -418,7 +432,7 @@ export async function run(): Promise<void> {
           `Updating service with variables: ${clusterId ? `clusterId=${clusterId}, ` : ''}input=${JSON.stringify(mergedInput, null, 2)}`
         )
 
-        const updateResult = await client.mutate({
+        const updateResult = await client.mutate<{ updateApp: AppResult }>({
           mutation: UPDATE_APP,
           variables: {
             clusterId,
@@ -426,7 +440,7 @@ export async function run(): Promise<void> {
           }
         })
 
-        const result = updateResult.data.updateApp
+        const result = requireData(updateResult.data).updateApp
         core.setOutput('service_url', result.status.url)
         core.setOutput('revision_name', result.status.latestReadyRevisionName)
         core.info(`Successfully updated app: ${serviceName}`)
@@ -454,7 +468,7 @@ export async function run(): Promise<void> {
             `Creating service with variables: ${clusterId ? `clusterId=${clusterId}, ` : ''}input=${JSON.stringify(newInput, null, 2)}`
           )
 
-          const { data } = await client.mutate({
+          const { data } = await client.mutate<{ createApp: AppResult }>({
             mutation: CREATE_APP,
             variables: {
               clusterId,
@@ -462,7 +476,7 @@ export async function run(): Promise<void> {
             }
           })
 
-          const result = data.createApp
+          const result = requireData(data).createApp
           core.setOutput('service_url', result.status.url)
           core.setOutput('revision_name', result.status.latestReadyRevisionName)
           core.info(`Successfully created app: ${serviceName}`)
@@ -485,7 +499,7 @@ export async function run(): Promise<void> {
             )
 
             // Since we couldn't get the existing service data, we'll just use the new input
-            const { data } = await client.mutate({
+            const { data } = await client.mutate<{ updateApp: AppResult }>({
               mutation: UPDATE_APP,
               variables: {
                 clusterId,
@@ -493,7 +507,7 @@ export async function run(): Promise<void> {
               }
             })
 
-            const result = data.updateApp
+            const result = requireData(data).updateApp
             core.setOutput('service_url', result.status.url)
             core.setOutput(
               'revision_name',
@@ -520,7 +534,7 @@ export async function run(): Promise<void> {
           )
 
           // Since we couldn't get the existing service data, we'll just use the new input
-          const { data } = await client.mutate({
+          const { data } = await client.mutate<{ updateApp: AppResult }>({
             mutation: UPDATE_APP,
             variables: {
               clusterId,
@@ -528,7 +542,7 @@ export async function run(): Promise<void> {
             }
           })
 
-          const result = data.updateApp
+          const result = requireData(data).updateApp
           core.setOutput('service_url', result.status.url)
           core.setOutput('revision_name', result.status.latestReadyRevisionName)
           core.info(`Successfully updated app: ${serviceName}`)
